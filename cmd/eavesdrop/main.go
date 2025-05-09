@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -13,16 +14,17 @@ import (
 )
 
 const (
-	VERSION = "0.1.0"
+	VERSION = "v0.1.0"
 	AUTHOR  = "Andrew Weymes <andrew.weymes@sittellalab.com.au>"
 )
 
 var (
 	wg = &sync.WaitGroup{}
 
-	outFlag  = pflag.StringP("out", "o", ".", "directory output path")
-	extFlag  = pflag.StringP("ext", "e", "json", "config file extension")
-	helpFlag = pflag.BoolP("help", "h", false, "prints help for a command")
+	outFlag    = pflag.StringP("out", "o", ".", "directory output path")
+	extFlag    = pflag.StringP("ext", "e", "json", "config file extension")
+	helpFlag   = pflag.BoolP("help", "h", false, "prints help for a command")
+	configFlag = pflag.StringP("config", "c", "eavesdrop_config.json", "config directory")
 )
 
 func main() {
@@ -30,8 +32,14 @@ func main() {
 
 	// run without args
 	if len(args) == 1 {
-		color.Yellow("warning: no config specified, using default")
-		watcher := notify.NewWatcher(config.DefaultConfig(""))
+		// get config or use default
+		cfg, err := config.GetConfig(*configFlag)
+		if err != nil {
+			cfg = config.DefaultConfig("")
+			color.Yellow("warning: no config specified, using default")
+		}
+		// start watcher
+		watcher := notify.NewWatcher(cfg)
 		go watcher.Start()
 		wg.Add(1)
 		go cleanup(watcher)
@@ -51,7 +59,7 @@ func main() {
 			fallthrough
 
 		default:
-			// TODO: print help text
+			println(help)
 			return
 		}
 	}
@@ -73,3 +81,28 @@ func cleanup(w *notify.Watcher) {
 	// close the watcher
 	w.Close()
 }
+
+var splash = fmt.Sprintf(`
+███████╗ █████╗ ██╗   ██╗███████╗███████╗██████╗ ██████╗  ██████╗ ██████╗ 
+██╔════╝██╔══██╗██║   ██║██╔════╝██╔════╝██╔══██╗██╔══██╗██╔═══██╗██╔══██╗
+█████╗  ███████║██║   ██║█████╗  ███████╗██║  ██║██████╔╝██║   ██║██████╔╝
+██╔══╝  ██╔══██║╚██╗ ██╔╝██╔══╝  ╚════██║██║  ██║██╔══██╗██║   ██║██╔═══╝ 
+███████╗██║  ██║ ╚████╔╝ ███████╗███████║██████╔╝██║  ██║╚██████╔╝██║     
+╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚══════╝╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝
+%s
+%s
+Live reloading for Go apps
+
+`, VERSION, AUTHOR)
+
+var help = splash +
+	color.YellowString("USAGE:\n") +
+	color.WhiteString("\teavesdrop [COMMANDS] [OPTIONS]\n\n") +
+	color.YellowString("COMMANDS:\n") +
+	color.BlueString("\tinit\n") +
+	color.WhiteString("\tGenerates a config file.\n\tDefaults to root directory as json if neither are specified.\n\n") +
+	color.BlueString("\thelp\n") +
+	color.WhiteString("\tPrints help text for eavesdrop.\n\tUse the --help or -h flags for help on commands.\n\n") +
+	color.YellowString("OPTIONS:\n") +
+	fmt.Sprintf("\t%s %s\n", color.MagentaString("<command>"), color.BlueString("--help, -h")) +
+	color.WhiteString("\tPrints help details for the given command.\n")
