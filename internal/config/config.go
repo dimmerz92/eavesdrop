@@ -26,18 +26,22 @@ type Config struct {
 	Run string `json:"run" yaml:"run" toml:"run"`
 
 	// Ignores named directories.
-	// Defaults to []string{"node_modules", "tmp", "vendor"}
+	// Defaults to []string{"assets", "data", "node_modules", "testdata", "tmp", "vendor"}
 	IgnoreDirs []string `json:"ignore_dirs" yaml:"ignore_dirs" toml:"ignore_dirs"`
 
 	// Ignores named files.
 	IgnoreFiles []string `json:"ignore_files" yaml:"ignore_files" toml:"ignore_files"`
 
 	// Ignores regular expression patterns.
-	// Defaults to []string{`^\.{1}.*$`}
+	// Defaults to []string{`^\.{1}.*$`, `^.*_templ\.go$`, `^.*_test\.go$`}
 	IgnoreRegex []string `json:"ignore_regex" yaml:"ignore_regex" toml:"ignore_regex"`
 
 	// Overrides any possible Ignore instructions and explicitly watches the file.
-	Watch []string `json:"watch" yaml:"watch" toml:"watch"`
+	WatchFiles []string `json:"watch_files" yaml:"watch_files" toml:"watch_files"`
+
+	// Only watches files with the specified extensions
+	// Defaults to []string{".go", ".html", ".templ", ".tmpl", ".tpl"}
+	WatchExts []string `json:"watch_exts" yaml:"watch_exts" toml:"watch_exts"`
 
 	// Sets up a proxy server for browser reloading.
 	// Defaults to false (off)
@@ -60,12 +64,54 @@ func DefaultConfig(configPath string) *Config {
 		Tmp:         "tmp",
 		Build:       "go build -o ./tmp/main ./main.go",
 		Run:         "tmp/main",
-		IgnoreDirs:  []string{"node_modules", "tmp", "vendor"},
+		IgnoreDirs:  []string{"assets", "data", "node_modules", "testdata", "tmp", "vendor"},
 		IgnoreFiles: []string{},
-		IgnoreRegex: []string{`^\.{1}.*$`},
-		Watch:       []string{},
+		IgnoreRegex: []string{`^\.{1}.*$`, `^.*_templ\.go$`, `^.*_test\.go$`},
+		WatchFiles:  []string{},
+		WatchExts:   []string{".go", ".html", ".templ", ".tmpl", ".tpl"},
 		Proxy:       false,
 		AppPort:     8000,
 		ProxyPort:   8001,
 	}
+}
+
+// GetConfig returns the config for the given path or the default config if the path is an empty string.
+func GetConfig(path string) (*Config, error) {
+	// if path is empty, use the default config
+	if path == "" {
+		return DefaultConfig(""), nil
+	}
+
+	var err error
+	var config *Config
+	switch ext := filepath.Ext(path); ext {
+	case ".json":
+		config, err = ReadJsonConfig(path)
+	case ".yaml":
+		config, err = ReadYamlConfig(path)
+	case ".toml":
+		config, err = ReadTomlConfig(path)
+	default:
+		err = fmt.Errorf("please use .json, .yaml, or .toml, not %s", ext)
+	}
+
+	return config, err
+}
+
+// GenerateConfig creates a default config and saves it at the given path and ext. If no ext defined, defaults to json.
+func GenerateConfig(path, ext string) error {
+	var err error
+
+	switch ext {
+	case ".json", "json", "":
+		err = GenerateJsonConfig(path)
+	case ".yaml", "yaml", ".yml", "yml":
+		err = GenerateYamlConfig(path)
+	case ".toml", "toml":
+		err = GenerateTomlConfig(path)
+	default:
+		err = fmt.Errorf("invalid extension: %s", ext)
+	}
+
+	return err
 }
