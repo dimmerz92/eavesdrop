@@ -1,0 +1,43 @@
+package config
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+)
+
+const JSON_CONFIG = "eavesdrop_config.json"
+
+// GenerateJsonConfig saves a copy of the default Config struct as a json file in the given output directory.
+func GenerateJsonConfig(outPath string) error {
+	// marshal the default config
+	path := filepath.Join(outPath, JSON_CONFIG)
+	config, err := json.MarshalIndent(DefaultConfig(path), "", "\t")
+	if err != nil {
+		return fmt.Errorf("failed to marshal config to json: %w", err)
+	}
+
+	// save the default config to the given output direcory
+	if err = os.WriteFile(path, config, 0644); err != nil {
+		return fmt.Errorf("failed to write config to json file: %w", err)
+	}
+
+	return nil
+}
+
+// ReadJsonConfig reads the data in the given file, unmarshals it to a *Config struct, and returns it.
+func ReadJsonConfig(inPath string) (*Config, error) {
+	// read in the given file path
+	file, err := os.ReadFile(inPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read json config: %w", err)
+	}
+
+	config := &Config{cfg: inPath}
+	if err = json.Unmarshal(file, config); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal json to config: %w", err)
+	}
+
+	return config, nil
+}
