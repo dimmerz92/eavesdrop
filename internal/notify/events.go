@@ -1,6 +1,7 @@
 package notify
 
 import (
+	"errors"
 	"io/fs"
 	"path/filepath"
 
@@ -14,10 +15,16 @@ func HandleNewDirectory(path string, w *Watcher) {
 		return
 	}
 
+	// recursively add to watcher if not ignored.
 	filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
-		// skip on error, non directory path, or ignored directory path
-		if err != nil || !d.IsDir() || w.ShouldIgnoreDir(path) {
+		// skip on error, non directory path
+		if err != nil || !d.IsDir() {
 			return nil
+		}
+
+		// skip if ignored directory
+		if w.ShouldIgnoreDir(path) {
+			return fs.SkipDir
 		}
 
 		// add the path to the watcher
@@ -27,4 +34,17 @@ func HandleNewDirectory(path string, w *Watcher) {
 
 		return nil
 	})
+}
+
+// HandleRemoveDirectory handles the remove directory event. Recursively removes any watched subdirectories.
+// A directory check should be performed prior to calling this function to ensure the path is a directory, not a file.
+func HandleRemoveDirectory(path string, w *Watcher) {
+	if path == "" {
+		return
+	}
+
+	// subdirectories are automatically removed if watched
+	if err := w.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		color.Red("failed to unwatch %s with error %v", path, err)
+	}
 }
