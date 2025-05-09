@@ -1,12 +1,14 @@
 package notify
 
 import (
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/dimmerz92/eavesdrop/internal/config"
 	"github.com/dimmerz92/eavesdrop/internal/utils"
+	"github.com/fatih/color"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -66,4 +68,45 @@ func (w *Watcher) ShouldIgnoreDir(path string) bool {
 	}
 
 	return false
+}
+
+// Start runs the watcher event loop. Call as part of a goroutine and handle cleanup using w.Close().
+func (w *Watcher) Start() {
+	HandleNewDirectory(w.Config.Root, w)
+	for {
+		select {
+		case event, ok := <-w.Events:
+			if !ok {
+				return
+			}
+
+			// ignore chmod events
+			if event.Has(fsnotify.Chmod) {
+				continue
+			}
+
+			// directory check
+			f, err := os.Stat(event.Name)
+
+			if event.Has(fsnotify.Create) || event.Has(fsnotify.Write) {
+				if err == nil && f.IsDir() {
+					HandleNewDirectory(event.Name, w)
+				} else {
+					// TODO: handle file events
+				}
+			} else if event.Has(fsnotify.Remove) || event.Has(fsnotify.Rename) {
+				if _, ok := w.Watched[event.Name]; ok {
+					HandleRemoveDirectory(event.Name, w)
+				} else {
+					// TODO: handle file events
+				}
+			}
+
+		case err, ok := <-w.Errors:
+			if !ok {
+				return
+			}
+			color.Red("error: %v", err)
+		}
+	}
 }
