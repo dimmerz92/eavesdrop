@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 )
 
@@ -10,7 +11,7 @@ type Config struct {
 	cfg string
 
 	// The project root directory.
-	// Defaults to ".".
+	// Defaults to the current working directory.
 	Root string `json:"root" yaml:"root" toml:"root"`
 
 	// The temp directory that the binary is compiled to.
@@ -58,9 +59,14 @@ type Config struct {
 
 // DefaultConfig returns the default config.
 func DefaultConfig(configPath string) *Config {
+	cwd, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+
 	return &Config{
 		cfg:         configPath,
-		Root:        ".",
+		Root:        cwd,
 		Tmp:         "tmp",
 		Build:       "go build -o ./tmp/main ./main.go",
 		Run:         "tmp/main",
