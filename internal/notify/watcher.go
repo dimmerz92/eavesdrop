@@ -42,3 +42,22 @@ func NewWatcher(cfg *config.Config) *Watcher {
 
 	return watcher
 }
+
+// ShouldIgnoreDir returns true if the given path should be ignored, otherwise false.
+func (w *Watcher) ShouldIgnoreDir(path string) bool {
+	if path == "" {
+		return true
+	}
+
+	if _, ok := w.IgnoreDirs[path]; ok {
+		return true
+	}
+
+	for _, regex := range w.IgnoreRegex {
+		if regex.MatchString(path) {
+			return true
+		}
+	}
+
+	return false
+}

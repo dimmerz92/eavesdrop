@@ -44,3 +44,22 @@ func TestNewWatcher(t *testing.T) {
 		t.Errorf("watched_exts expected %+v\ngot %+v", expected["watched_exts"], watcher.WatchExts)
 	}
 }
+
+func TestShouldIgnoreDir(t *testing.T) {
+	watcher := notify.NewWatcher(config.DefaultConfig(""))
+
+	tests := map[string]bool{
+		// named directories
+		"assets": true, "data": true, "node_modules": true, "testdata": true, "tmp": true, "vendor": true,
+		// regex patterned
+		".git": true, ".DS_STORE": true,
+		// should not ignore
+		"internal": false, "cmd": false, "sql": false,
+	}
+
+	for k, v := range tests {
+		if ok := watcher.ShouldIgnoreDir(k); ok != v {
+			t.Errorf("%s expected %t got %t", k, v, ok)
+		}
+	}
+}
