@@ -1,7 +1,9 @@
 package notify
 
 import (
+	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/dimmerz92/eavesdrop/internal/config"
 	"github.com/dimmerz92/eavesdrop/internal/utils"
@@ -45,6 +47,8 @@ func NewWatcher(cfg *config.Config) *Watcher {
 
 // ShouldIgnoreDir returns true if the given path should be ignored, otherwise false.
 func (w *Watcher) ShouldIgnoreDir(path string) bool {
+	// account for absolute paths
+	path = strings.TrimPrefix(path, w.Config.Root+string(filepath.Separator))
 	if path == "" {
 		return true
 	}
