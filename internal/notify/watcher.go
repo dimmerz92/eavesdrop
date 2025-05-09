@@ -48,7 +48,7 @@ func NewWatcher(cfg *config.Config) *Watcher {
 // ShouldIgnoreDir returns true if the given path should be ignored, otherwise false.
 func (w *Watcher) ShouldIgnoreDir(path string) bool {
 	// account for absolute paths
-	path = strings.TrimPrefix(path, w.Config.Root+string(filepath.Separator))
+	path = filepath.Clean(strings.TrimPrefix(path, w.Config.Root+string(filepath.Separator)))
 	if path == "" {
 		return true
 	}

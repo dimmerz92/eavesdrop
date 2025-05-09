@@ -30,6 +30,8 @@ func HandleNewDirectory(path string, w *Watcher) {
 		// add the path to the watcher
 		if err := w.Add(path); err != nil {
 			color.Red("failed to watch %s with error %v", path, err)
+		} else {
+			color.Magenta("watching %s", path)
 		}
 
 		return nil
@@ -46,5 +48,7 @@ func HandleRemoveDirectory(path string, w *Watcher) {
 	// subdirectories are automatically removed if watched
 	if err := w.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		color.Red("failed to unwatch %s with error %v", path, err)
+	} else {
+		color.Magenta("unwatched %s", path)
 	}
 }
