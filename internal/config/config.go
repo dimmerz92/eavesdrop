@@ -59,7 +59,7 @@ type Config struct {
 
 // DefaultConfig returns the default config.
 func DefaultConfig(configPath string) *Config {
-	cwd, err := os.Executable()
+	cwd, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
