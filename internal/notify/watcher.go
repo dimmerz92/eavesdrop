@@ -17,6 +17,7 @@ type Watcher struct {
 	IgnoreRegex []*regexp.Regexp
 	WatchFiles  map[string]struct{}
 	WatchExts   map[string]struct{}
+	Watched     map[string]struct{}
 	*fsnotify.Watcher
 }
 
@@ -34,6 +35,7 @@ func NewWatcher(cfg *config.Config) *Watcher {
 		IgnoreRegex: []*regexp.Regexp{},
 		WatchFiles:  utils.SliceToSet(cfg.WatchFiles),
 		WatchExts:   utils.SliceToSet(cfg.WatchExts),
+		Watched:     make(map[string]struct{}),
 		Watcher:     w,
 	}
 

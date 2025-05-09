@@ -4,8 +4,10 @@ import (
 	"errors"
 	"io/fs"
 	"path/filepath"
+	"strings"
 
 	"github.com/fatih/color"
+	"github.com/fsnotify/fsnotify"
 )
 
 // HandleNewDirectory handles the new directory event. Recursively adds new directories to the watcher if not ignored.
@@ -31,6 +33,7 @@ func HandleNewDirectory(path string, w *Watcher) {
 		if err := w.Add(path); err != nil {
 			color.Red("failed to watch %s with error %v", path, err)
 		} else {
+			w.Watched[path] = struct{}{}
 			color.Magenta("watching %s", path)
 		}
 
@@ -46,9 +49,19 @@ func HandleRemoveDirectory(path string, w *Watcher) {
 	}
 
 	// subdirectories are automatically removed if watched
-	if err := w.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	if err := w.Remove(path); err != nil && !errors.Is(err, fsnotify.ErrNonExistentWatch) {
 		color.Red("failed to unwatch %s with error %v", path, err)
 	} else {
-		color.Magenta("unwatched %s", path)
+		color.Yellow("unwatched %s", path)
+
+		// remove path from watched
+		delete(w.Watched, path)
+
+		// recursively remove children from watched
+		for dir := range w.Watched {
+			if strings.HasPrefix(dir, path+string(filepath.Separator)) {
+				delete(w.Watched, dir)
+			}
+		}
 	}
 }
