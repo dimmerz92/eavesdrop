@@ -2,8 +2,12 @@ package main
 
 import (
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 
+	"github.com/dimmerz92/eavesdrop/internal/notify"
+	"github.com/fatih/color"
 	"github.com/spf13/pflag"
 )
 
@@ -41,4 +45,18 @@ func main() {
 	}
 
 	wg.Wait()
+}
+
+func cleanup(n *notify.Notifier) {
+	defer wg.Done()
+
+	// listen for SIGINT and SIGTERM
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+
+	// block and wait for a signal
+	s := <-sig
+
+	color.Cyan("shutdown with signal: %s", s.String())
+	n.Stop()
 }
