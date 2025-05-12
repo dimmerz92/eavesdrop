@@ -1,11 +1,13 @@
 package notify
 
 import (
+	"io/fs"
 	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/dimmerz92/eavesdrop/internal/config"
+	"github.com/dimmerz92/eavesdrop/internal/utils"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -33,11 +35,11 @@ func NewNotifier(cfg *config.Config) *Notifier {
 		Config:      cfg,
 		Debouncer:   &Debouncer{},
 		Exec:        &Exec{},
-		IgnoreDirs:  SliceToSet(cfg.IgnoreDirs),
-		IgnoreFiles: SliceToSet(cfg.IgnoreFiles),
+		IgnoreDirs:  utils.SliceToSet(cfg.IgnoreDirs),
+		IgnoreFiles: utils.SliceToSet(cfg.IgnoreFiles),
 		IgnoreRegex: []*regexp.Regexp{},
-		WatchFiles:  SliceToSet(cfg.WatchFiles),
-		WatchExts:   SliceToSet(cfg.WatchExts),
+		WatchFiles:  utils.SliceToSet(cfg.WatchFiles),
+		WatchExts:   utils.SliceToSet(cfg.WatchExts),
 		WatchedDirs: make(map[string]struct{}),
 		Watcher:     watcher,
 	}
@@ -51,9 +53,9 @@ func NewNotifier(cfg *config.Config) *Notifier {
 
 // ShouldIgnore checks whether the given event file or directory should be ignored.
 // If a file, explicitly watched files take precedence over ignored files and regex.
-func (n *Notifier) ShouldIgnore(event fsnotify.Event, isDir bool) bool {
+func (n *Notifier) ShouldIgnore(path string, isDir bool) bool {
 	// account for absolute paths
-	path := filepath.Clean(strings.TrimSuffix(event.Name, n.Config.Root+string(filepath.Separator)))
+	path = filepath.Clean(strings.TrimSuffix(path, n.Config.Root+string(filepath.Separator)))
 	if path == "" {
 		return true
 	}

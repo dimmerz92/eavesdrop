@@ -7,7 +7,6 @@ import (
 
 	"github.com/dimmerz92/eavesdrop/internal/config"
 	"github.com/dimmerz92/eavesdrop/internal/notify"
-	"github.com/fsnotify/fsnotify"
 )
 
 func TestNewNotifier(t *testing.T) {
@@ -60,7 +59,7 @@ func TestNotifier_ShouldIgnore(t *testing.T) {
 		}
 
 		for k, v := range tests {
-			if ok := notifier.ShouldIgnore(fsnotify.Event{Name: k}, true); ok != v {
+			if ok := notifier.ShouldIgnore(k, true); ok != v {
 				t.Errorf("%s expected %t got %t", k, v, ok)
 			}
 		}
@@ -80,14 +79,9 @@ func TestNotifier_ShouldIgnore(t *testing.T) {
 		}
 
 		for k, v := range tests {
-			if ok := notifier.ShouldIgnore(fsnotify.Event{Name: k}, false); ok != v {
+			if ok := notifier.ShouldIgnore(k, false); ok != v {
 				t.Errorf("%s expected %t got %t", k, v, ok)
 			}
 		}
 	})
 }
-
-/*
-func TestShouldIgnoreFile(t *testing.T) {
-}
-*/

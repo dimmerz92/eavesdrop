@@ -1,10 +1,10 @@
-package notify_test
+package utils_test
 
 import (
 	"reflect"
 	"testing"
 
-	"github.com/dimmerz92/eavesdrop/internal/notify"
+	"github.com/dimmerz92/eavesdrop/internal/utils"
 )
 
 func TestSliceToSet(t *testing.T) {
@@ -12,7 +12,7 @@ func TestSliceToSet(t *testing.T) {
 
 	expected := map[string]struct{}{"hello": {}, "world": {}}
 
-	set := notify.SliceToSet(test)
+	set := utils.SliceToSet(test)
 	if !reflect.DeepEqual(expected, set) {
 		t.Errorf("expected %+v\ngot %+v", expected, set)
 	}

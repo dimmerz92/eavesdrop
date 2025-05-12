@@ -1,4 +1,4 @@
-package notify
+package utils
 
 // SliceToSet converts a string slice to a map set and returns it.
 func SliceToSet(slice []string) map[string]struct{} {
