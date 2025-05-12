@@ -55,7 +55,7 @@ func NewNotifier(cfg *config.Config) *Notifier {
 // If a file, explicitly watched files take precedence over ignored files and regex.
 func (n *Notifier) ShouldIgnore(path string, isDir bool) bool {
 	// account for absolute paths
-	path = filepath.Clean(strings.TrimSuffix(path, n.Config.Root+string(filepath.Separator)))
+	path = filepath.Clean(strings.TrimPrefix(path, n.Config.Root+string(filepath.Separator)))
 	if path == "" {
 		return true
 	}
@@ -80,4 +80,26 @@ func (n *Notifier) ShouldIgnore(path string, isDir bool) bool {
 	}
 
 	return false
+}
+
+// HandleNewDir recursively adds the directories at the given path if not ignored.
+func (n *Notifier) HandleNewDir(path string) {
+	filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || !d.IsDir() {
+			return nil
+		}
+
+		if n.ShouldIgnore(path, true) {
+			return fs.SkipDir
+		}
+
+		if err := n.Add(path); err != nil {
+			utils.PrintError("failed to watch %s with err %v", path, err)
+		} else {
+			n.WatchedDirs[path] = struct{}{}
+			utils.PrintWatching("watching %s", path)
+		}
+
+		return nil
+	})
 }
