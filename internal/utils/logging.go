@@ -17,12 +17,17 @@ func PrintWatching(s string, v ...any) {
 	color.Magenta(s, v)
 }
 
-// PrintDirChange prints the given args in cyan.
-func PrintDirChange(s string, v ...any) {
-	color.Cyan(s, v)
-}
-
 // PrintFileChange prints the given args in green.
 func PrintFileChange(s string, v ...any) {
 	color.Green(s, v)
+}
+
+// PrintBuild prints the given args in cyan.
+func PrintBuild(s string, v ...any) {
+	color.Cyan(s, v)
+}
+
+// PrintRun prints the given args in blue.
+func PrintRun(s string, v ...any) {
+	color.Blue(s, v)
 }
