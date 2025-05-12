@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-const JSON_CONFIG = "eavesdrop_config.json"
+const JSON_CONFIG = "eavesdrop.json"
 
 // GenerateJsonConfig saves a copy of the default Config struct as a json file in the given output directory.
 func GenerateJsonConfig(outPath string) error {
