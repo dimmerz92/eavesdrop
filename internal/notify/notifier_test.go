@@ -7,6 +7,7 @@ import (
 
 	"github.com/dimmerz92/eavesdrop/internal/config"
 	"github.com/dimmerz92/eavesdrop/internal/notify"
+	"github.com/fsnotify/fsnotify"
 )
 
 func TestNewNotifier(t *testing.T) {
@@ -44,3 +45,49 @@ func TestNewNotifier(t *testing.T) {
 		t.Errorf("watched_exts expected %+v\ngot %+v", expected["watched_exts"], notifier.WatchExts)
 	}
 }
+
+func TestNotifier_ShouldIgnore(t *testing.T) {
+	notifier := notify.NewNotifier(config.DefaultConfig(""))
+
+	t.Run("test directories", func(t *testing.T) {
+		tests := map[string]bool{
+			// named directories
+			"assets": true, "data": true, "node_modules": true, "testdata": true, "tmp": true, "vendor": true,
+			// regex patterned
+			".git": true, ".DS_STORE": true,
+			// should not ignore
+			"internal": false, "cmd": false, "sql": false,
+		}
+
+		for k, v := range tests {
+			if ok := notifier.ShouldIgnore(fsnotify.Event{Name: k}, true); ok != v {
+				t.Errorf("%s expected %t got %t", k, v, ok)
+			}
+		}
+	})
+
+	t.Run("test files", func(t *testing.T) {
+		notifier.IgnoreFiles = map[string]struct{}{"ignored.go": {}}
+		notifier.WatchFiles = map[string]struct{}{"test.txt": {}, ".config": {}}
+
+		tests := map[string]bool{
+			// named directories
+			"ignored.go": true,
+			// regex patterned
+			".env": true, "page_templ.go": true, "test_test.go": true,
+			// should not ignore
+			"test.txt": false, ".config": false,
+		}
+
+		for k, v := range tests {
+			if ok := notifier.ShouldIgnore(fsnotify.Event{Name: k}, false); ok != v {
+				t.Errorf("%s expected %t got %t", k, v, ok)
+			}
+		}
+	})
+}
+
+/*
+func TestShouldIgnoreFile(t *testing.T) {
+}
+*/
