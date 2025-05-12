@@ -3,9 +3,11 @@ package notify
 import (
 	"errors"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/dimmerz92/eavesdrop/internal/config"
 	"github.com/dimmerz92/eavesdrop/internal/utils"
@@ -159,5 +161,57 @@ func (n *Notifier) HandleReset() {
 	utils.PrintRun("running...")
 	if err := n.Exec.Run(n.Config.Run); err != nil {
 		utils.PrintError("%v", err)
+	}
+}
+
+func (n *Notifier) Start() {
+	// initial set up
+	n.HandleNewDir(n.Config.Root)
+	n.HandleBuild()
+	n.HandleRun()
+
+	// main event loop
+	for {
+		select {
+		case event, ok := <-n.Events:
+			// return on channel closure
+			if !ok {
+				return
+			}
+
+			// ignore chmod events
+			if event.Has(fsnotify.Chmod) {
+				continue
+			}
+
+			// handle directory events
+			if f, err := os.Stat(event.Name); err == nil && f.IsDir() {
+				if n.ShouldIgnore(event.Name, true) {
+					continue
+				}
+				if event.Has(fsnotify.Create) || event.Has(fsnotify.Write) {
+					n.HandleNewDir(event.Name)
+				} else {
+					n.HandleRemovedDir(event.Name)
+				}
+
+				continue
+			}
+
+			// handle file events
+			if n.ShouldIgnore(event.Name, false) {
+				continue
+			}
+
+			utils.PrintFileChange("%s changed", event.Name)
+			n.Debouncer.Run(200*time.Millisecond, n.HandleReset)
+
+		case err, ok := <-n.Errors:
+			// return on channel closure
+			if !ok {
+				return
+			}
+			utils.PrintError("%v", err)
+		}
 	}
 }
