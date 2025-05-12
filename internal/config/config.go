@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 )
 
 type Config struct {
@@ -95,4 +96,45 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("an application and proxy port is required if proxy is true")
 	}
 	return nil
+}
+
+// GetConfig returns the config for the given path or the default config if the path is an empty string.
+func GetConfig(path string) (*Config, error) {
+	// if path is empty, use the default config
+	if path == "" {
+		return DefaultConfig(""), nil
+	}
+
+	var err error
+	var config *Config
+	switch ext := filepath.Ext(path); ext {
+	case ".json":
+		config, err = ReadJsonConfig(path)
+	case ".yaml":
+		config, err = ReadYamlConfig(path)
+	case ".toml":
+		config, err = ReadTomlConfig(path)
+	default:
+		err = fmt.Errorf("please use .json, .yaml, or .toml, not %s", ext)
+	}
+
+	return config, err
+}
+
+// GenerateConfig creates a default config and saves it at the given path and ext. If no ext defined, defaults to json.
+func GenerateConfig(path, ext string) error {
+	var err error
+
+	switch ext {
+	case ".json", "json", "":
+		err = GenerateJsonConfig(path)
+	case ".yaml", "yaml", ".yml", "yml":
+		err = GenerateYamlConfig(path)
+	case ".toml", "toml":
+		err = GenerateTomlConfig(path)
+	default:
+		err = fmt.Errorf("invalid extension: %s", ext)
+	}
+
+	return err
 }
