@@ -1,6 +1,7 @@
 package notify
 
 import (
+	"errors"
 	"io/fs"
 	"path/filepath"
 	"regexp"
@@ -102,4 +103,21 @@ func (n *Notifier) HandleNewDir(path string) {
 
 		return nil
 	})
+}
+
+// HandleRemovedDir recursively removes watch on directories at the given path.
+func (n *Notifier) HandleRemovedDir(path string) {
+	if err := n.Remove(path); err != nil && !errors.Is(err, fsnotify.ErrNonExistentWatch) {
+		utils.PrintError("failed to unwatch %s with error %v", path, err)
+	} else {
+		utils.PrintWatching("unwatched %s", path)
+
+		delete(n.WatchedDirs, path)
+
+		for dir := range n.WatchedDirs {
+			if strings.HasPrefix(dir, path+string(filepath.Separator)) {
+				delete(n.WatchedDirs, dir)
+			}
+		}
+	}
 }

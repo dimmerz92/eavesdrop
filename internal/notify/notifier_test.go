@@ -133,3 +133,57 @@ func TestNotifier_HandleNewDir(t *testing.T) {
 		t.Errorf("expected %v\ngot %v", expected, watched)
 	}
 }
+
+func TestNotifier_HandleRemovedDir(t *testing.T) {
+	tmp := t.TempDir()
+	notifier := notify.NewNotifier(config.DefaultConfig(""))
+	notifier.Config.Root = tmp
+	notifier.Add(tmp)
+
+	t.Run("test folder delete", func(t *testing.T) {
+		tests := []string{filepath.Join(tmp, "keep"), filepath.Join(tmp, "delete"), filepath.Join(tmp, "delete/delete")}
+		expected := []string{tmp, filepath.Join(tmp, "keep")}
+		for _, test := range tests {
+			if err := os.Mkdir(test, 0777); err != nil {
+				t.Fatalf("failed to make directory: %v", err)
+			}
+			notifier.HandleNewDir(test)
+		}
+
+		time.Sleep(time.Millisecond)
+
+		if err := os.RemoveAll(tests[1]); err != nil {
+			t.Fatalf("failed to remove directory: %v", err)
+		}
+
+		time.Sleep(time.Millisecond)
+
+		var done bool
+		for !done {
+			select {
+			case event, ok := <-notifier.Events:
+				if !ok {
+					t.Fatalf("event channel closed")
+				}
+				if event.Has(fsnotify.Remove) {
+					notifier.HandleNewDir(event.Name)
+				}
+			case err, ok := <-notifier.Errors:
+				if !ok {
+					t.Fatalf("event channel closed")
+				} else if err != nil {
+					t.Fatalf("message on error chan: %v", err)
+				}
+			case <-time.Tick(time.Second):
+				done = true
+			}
+		}
+
+		slices.Sort(expected)
+		watched := notifier.WatchList()
+		slices.Sort(watched)
+		if !reflect.DeepEqual(expected, watched) {
+			t.Errorf("expected %v\ngot %v", expected, watched)
+		}
+	})
+}
