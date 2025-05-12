@@ -7,7 +7,9 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/dimmerz92/eavesdrop/internal/config"
 	"github.com/dimmerz92/eavesdrop/internal/notify"
+	"github.com/dimmerz92/eavesdrop/internal/utils"
 	"github.com/fatih/color"
 	"github.com/spf13/pflag"
 )
@@ -31,7 +33,23 @@ func main() {
 
 	// run without args
 	if len(args) == 1 {
-		// TODO: run without any flags/args
+		color.Yellow(splash)
+
+		// get the config
+		cfg, err := config.GetConfig(*configFlag)
+		if err != nil {
+			cfg = config.DefaultConfig("")
+			utils.PrintWarning("warning: no config specified, using default")
+		}
+
+		// start the notifier
+		notifier := notify.NewNotifier(cfg)
+		go notifier.Start()
+
+		// run cleanup
+		wg.Add(1)
+		go cleanup(notifier)
+		wg.Wait()
 		return
 	}
 
@@ -41,8 +59,6 @@ func main() {
 	case "help", "--help", "-h":
 		println(help)
 	}
-
-	wg.Wait()
 }
 
 func cleanup(n *notify.Notifier) {

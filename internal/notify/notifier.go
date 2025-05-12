@@ -206,8 +206,10 @@ func (n *Notifier) Start() {
 				continue
 			}
 
-			utils.PrintFileChange("%s changed", event.Name)
-			n.Debouncer.Run(200*time.Millisecond, n.HandleReset)
+			n.Debouncer.Run(200*time.Millisecond, func() {
+				utils.PrintFileChange("%s changed", event.Name)
+				n.HandleReset()
+			})
 
 		case err, ok := <-n.Errors:
 			// return on channel closure
