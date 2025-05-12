@@ -121,3 +121,43 @@ func (n *Notifier) HandleRemovedDir(path string) {
 		}
 	}
 }
+
+// HandleBuild runs the Exec.Build command with the Config.Build directive with logging.
+func (n *Notifier) HandleBuild() {
+	utils.PrintBuild("building...")
+	if out, err := n.Exec.Build(n.Config.Build); err != nil {
+		utils.PrintError(out)
+	} else if out != "" {
+		println(out)
+	}
+}
+
+// HandleRun runs the Exec.Run command with the Config.Run directive with logging.
+func (n *Notifier) HandleRun() {
+	utils.PrintRun("running...")
+	if err := n.Exec.Run(n.Config.Run); err != nil {
+		utils.PrintError("%v", err)
+	}
+}
+
+// HandleReset kills any existing processes and runs the Exec.BuildExec.Run command with the Config.Build and Config.Run
+// directives with logging.
+func (n *Notifier) HandleReset() {
+	if err := n.Exec.Kill(); err != nil {
+		utils.PrintError("%v", err)
+		return
+	}
+
+	utils.PrintBuild("building...")
+	if out, err := n.Exec.Build(n.Config.Build); err != nil {
+		utils.PrintError(out)
+		return
+	} else if out != "" {
+		println(out)
+	}
+
+	utils.PrintRun("running...")
+	if err := n.Exec.Run(n.Config.Run); err != nil {
+		utils.PrintError("%v", err)
+	}
+}
