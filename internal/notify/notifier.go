@@ -74,6 +74,9 @@ func (n *Notifier) ShouldIgnore(path string, isDir bool) bool {
 		if _, ok := n.IgnoreFiles[path]; ok {
 			return true
 		}
+		if _, ok := n.WatchExts[filepath.Ext(path)]; !ok {
+			return true
+		}
 	}
 
 	for _, regex := range n.IgnoreRegex {
