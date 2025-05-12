@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -38,10 +39,7 @@ func main() {
 	case "init":
 	// TODO: generate a config file
 	case "help", "--help", "-h":
-		fallthrough
-	default:
-		// TODO: print help
-		return
+		println(help)
 	}
 
 	wg.Wait()
@@ -60,3 +58,28 @@ func cleanup(n *notify.Notifier) {
 	color.Cyan("shutdown with signal: %s", s.String())
 	n.Stop()
 }
+
+var splash = fmt.Sprintf(`
+███████╗ █████╗ ██╗   ██╗███████╗███████╗██████╗ ██████╗  ██████╗ ██████╗ 
+██╔════╝██╔══██╗██║   ██║██╔════╝██╔════╝██╔══██╗██╔══██╗██╔═══██╗██╔══██╗
+█████╗  ███████║██║   ██║█████╗  ███████╗██║  ██║██████╔╝██║   ██║██████╔╝
+██╔══╝  ██╔══██║╚██╗ ██╔╝██╔══╝  ╚════██║██║  ██║██╔══██╗██║   ██║██╔═══╝ 
+███████╗██║  ██║ ╚████╔╝ ███████╗███████║██████╔╝██║  ██║╚██████╔╝██║     
+╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚══════╝╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝
+%s
+%s
+Live reloading for Go apps
+
+`, VERSION, AUTHOR)
+
+var help = splash +
+	color.YellowString("USAGE:\n") +
+	color.WhiteString("\teavesdrop [COMMANDS] [OPTIONS]\n\n") +
+	color.YellowString("COMMANDS:\n") +
+	color.BlueString("\tinit ") + color.MagentaString("[options]\n") +
+	color.WhiteString("\tGenerates a config file.\n\n") +
+	color.BlueString("\thelp\n") +
+	color.WhiteString("\tPrints help text for eavesdrop.\n\tUse the --help or -h flags for help on commands.\n\n") +
+	color.YellowString("OPTIONS:\n") +
+	color.BlueString("\t<command> ") + color.MagentaString("--help, -h\n") +
+	color.WhiteString("\tPrints help details for the given command.\n")
