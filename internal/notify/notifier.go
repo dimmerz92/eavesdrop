@@ -215,3 +215,10 @@ func (n *Notifier) Start() {
 		}
 	}
 }
+
+// Stop stops any running processes and closes the watcher.
+func (n *Notifier) Stop() {
+	n.Debouncer.timer.Stop()
+	n.Exec.Kill()
+	n.Close()
+}
