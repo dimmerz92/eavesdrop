@@ -136,7 +136,9 @@ func (p *Proxy) injectRefresher(resp *http.Response) (string, error) {
 		return page, nil
 	}
 
-	return page[:body] + SSE_SCRIPT + page[body:], nil
+	script := page[:body] + "<script>" + SSE_SCRIPT + "</script>" + page[body:]
+
+	return script, nil
 }
 
 // refresher handles the sse refresh events to the browser.
