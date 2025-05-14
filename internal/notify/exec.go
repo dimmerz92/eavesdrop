@@ -26,7 +26,8 @@ func (e *Exec) Build(command string) (string, error) {
 	return strings.TrimSpace(string(out)), err
 }
 
-// Run runs the given long running command in a separate process group without waiting for it to finish.
+// Run runs the given long running command in a separate process group without
+// waiting for it to finish.
 // Kill the process using the Kill() method.
 func (e *Exec) Run(command string) error {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -35,7 +36,8 @@ func (e *Exec) Run(command string) error {
 	cmd.Stderr = os.Stderr
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
-	if err := cmd.Start(); err != nil {
+	err := cmd.Start()
+	if err != nil {
 		cancel()
 		return fmt.Errorf("failed to execute run command: %w", err)
 	}
@@ -47,8 +49,8 @@ func (e *Exec) Run(command string) error {
 	return nil
 }
 
-// Kill signals the process with SIGTERM for a graceful shutdown with 5 seconds grace.
-// On error, an explicit kill signal is sent.
+// Kill signals the process with SIGTERM for a graceful shutdown with 5 seconds
+// grace. On error, an explicit kill signal is sent.
 func (e *Exec) Kill() error {
 	if e.Cmd == nil {
 		return nil
