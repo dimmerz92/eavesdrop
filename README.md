@@ -41,7 +41,7 @@ The Air project inspired me to write my own version, and so you could say this i
 
 1. Download Eavesdrop with Go
 ```sh
-go install github.com/dimmerz92/eavesdrop@latest
+go install github.com/dimmerz92/eavesdrop/cmd/eavesdrop@latest
 ```
 
 2. Run Eavesdrop
