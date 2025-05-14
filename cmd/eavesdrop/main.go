@@ -37,11 +37,28 @@ func main() {
 		return
 	}
 
+	pflag.Parse()
+
 	switch args[1] {
+	// generate a config file
 	case "init":
-	// TODO: generate a config file
+		if *helpF {
+			// TODO: print init help
+			return
+		}
+
+		err := config.GenerateConfig(*outF, *extF)
+		if err != nil {
+			utils.PrintError("error generating config: %v", err)
+		} else {
+			color.Green("config file generated to: %s", *outF)
+		}
+
+	// print base help
 	case "help", "--help", "-h":
 		println(help)
+
+	// run eavesdrop with flags
 	default:
 		runEavesdrop()
 	}
