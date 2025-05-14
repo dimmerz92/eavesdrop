@@ -22,10 +22,10 @@ const (
 var (
 	wg = &sync.WaitGroup{}
 
-	outFlag    = pflag.StringP("out", "o", ".", "directory output path")
-	extFlag    = pflag.StringP("ext", "e", "json", "config file extension")
-	helpFlag   = pflag.BoolP("help", "h", false, "prints help for a command")
-	configFlag = pflag.StringP("config", "c", "eavesdrop.json", "config directory")
+	outF    = pflag.StringP("out", "o", ".", "directory output path")
+	extF    = pflag.StringP("ext", "e", "json", "config file extension")
+	helpF   = pflag.BoolP("help", "h", false, "prints help for a command")
+	configF = pflag.StringP("config", "c", "eavesdrop.json", "config directory")
 )
 
 func main() {
@@ -33,23 +33,7 @@ func main() {
 
 	// run without args
 	if len(args) == 1 {
-		color.Yellow(splash)
-
-		// get the config
-		cfg, err := config.GetConfig(*configFlag)
-		if err != nil {
-			cfg = config.DefaultConfig("")
-			utils.PrintWarning("warning: no config specified, using default")
-		}
-
-		// start the notifier
-		notifier := notify.NewNotifier(cfg)
-		go notifier.Start()
-
-		// run cleanup
-		wg.Add(1)
-		go cleanup(notifier)
-		wg.Wait()
+		runEavesdrop()
 		return
 	}
 
@@ -58,7 +42,30 @@ func main() {
 	// TODO: generate a config file
 	case "help", "--help", "-h":
 		println(help)
+	default:
+		runEavesdrop()
 	}
+}
+
+func runEavesdrop() {
+	color.Yellow(splash)
+
+	// get the config
+	cfg, err := config.GetConfig(*configF)
+	if err != nil {
+		cfg = config.DefaultConfig("")
+		utils.PrintWarning("warning: no config specified, using default")
+	}
+
+	// start the notifier
+	notifier := notify.NewNotifier(cfg)
+	go notifier.Start()
+
+	// run cleanup
+	wg.Add(1)
+	go cleanup(notifier)
+	wg.Wait()
+	return
 }
 
 func cleanup(n *notify.Notifier) {
@@ -95,7 +102,8 @@ var help = splash +
 	color.BlueString("\tinit ") + color.MagentaString("[options]\n") +
 	color.WhiteString("\tGenerates a config file.\n\n") +
 	color.BlueString("\thelp\n") +
-	color.WhiteString("\tPrints help text for eavesdrop.\n\tUse the --help or -h flags for help on commands.\n\n") +
+	color.WhiteString("\tPrints help text for eavesdrop.\n") +
+	color.WhiteString("\tUse --help or -h flags for help on commands.\n\n") +
 	color.YellowString("OPTIONS:\n") +
 	color.BlueString("\t<command> ") + color.MagentaString("--help, -h\n") +
 	color.WhiteString("\tPrints help details for the given command.\n")
