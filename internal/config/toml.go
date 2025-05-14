@@ -43,5 +43,11 @@ func ReadTomlConfig(inPath string) (*Config, error) {
 		return nil, fmt.Errorf("validation error: %w", err)
 	}
 
+	path, err := filepath.Abs(config.Root)
+	if err != nil {
+		return nil, fmt.Errorf("could not determine absolute path for root: %v", err)
+	}
+	config.Root = path
+
 	return config, nil
 }
