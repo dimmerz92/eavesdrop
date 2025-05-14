@@ -43,7 +43,7 @@ func main() {
 	// generate a config file
 	case "init":
 		if *helpF {
-			// TODO: print init help
+			println(initHelp)
 			return
 		}
 
@@ -65,7 +65,7 @@ func main() {
 }
 
 func runEavesdrop() {
-	color.Yellow(splash)
+	println(splash)
 
 	// get the config
 	cfg, err := config.GetConfig(*configF)
@@ -114,7 +114,8 @@ Live reloading for Go apps
 
 var help = splash +
 	color.YellowString("USAGE:\n") +
-	color.WhiteString("\teavesdrop [COMMANDS] [OPTIONS]\n\n") +
+	color.WhiteString("\teavesdrop ") +
+	color.BlueString("[COMMANDS] ") + color.MagentaString("[OPTIONS]\n\n") +
 	color.YellowString("COMMANDS:\n") +
 	color.BlueString("\tinit ") + color.MagentaString("[options]\n") +
 	color.WhiteString("\tGenerates a config file.\n\n") +
@@ -122,5 +123,18 @@ var help = splash +
 	color.WhiteString("\tPrints help text for eavesdrop.\n") +
 	color.WhiteString("\tUse --help or -h flags for help on commands.\n\n") +
 	color.YellowString("OPTIONS:\n") +
+	color.MagentaString("\t--config, -c\n") +
+	color.WhiteString("\tThe directory containing the config file.\n") +
+	color.WhiteString("\tDefaults to project root if not supplied.\n\n") +
 	color.BlueString("\t<command> ") + color.MagentaString("--help, -h\n") +
 	color.WhiteString("\tPrints help details for the given command.\n")
+
+var initHelp = splash +
+	color.YellowString("USAGE:\n") +
+	color.WhiteString("\teavescrop init [OPTIONS]\n\n") +
+	color.YellowString("OPTIONS:\n") +
+	color.MagentaString("\t--out, -o\n") +
+	color.WhiteString("\tThe output directory for the generated config.\n\n") +
+	color.MagentaString("\t--ext, -e\n") +
+	color.WhiteString("\tThe extension (filetype) for the config.\n") +
+	color.WhiteString("\tjson, toml, and yaml are supported.\n\n")
