@@ -12,7 +12,11 @@ import (
 	"github.com/dimmerz92/eavesdrop/internal/config"
 )
 
-const SSE_SCRIPT = "<script>hello</script>"
+const SSE_SCRIPT = `<script>
+	const eventSource = new EventSource("/eavesdrop_sse");
+	eventSource.onmessage = (event) => event.data === "refresh" && window.location.reload();
+	eventSource.onerror = (error) => console.error("eavesdrop sse error:", error);
+</script>`
 
 type Proxy struct {
 	AppPort   int
