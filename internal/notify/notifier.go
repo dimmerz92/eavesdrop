@@ -3,6 +3,7 @@ package notify
 import (
 	"errors"
 	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/dimmerz92/eavesdrop/internal/config"
+	"github.com/dimmerz92/eavesdrop/internal/proxy"
 	"github.com/dimmerz92/eavesdrop/internal/utils"
 	"github.com/fsnotify/fsnotify"
 )
@@ -18,6 +20,7 @@ type Notifier struct {
 	Config      *config.Config
 	Debouncer   *Debouncer
 	Exec        *Exec
+	Proxy       *proxy.Proxy
 	IgnoreDirs  map[string]struct{}
 	IgnoreFiles map[string]struct{}
 	IgnoreRegex []*regexp.Regexp
@@ -48,17 +51,40 @@ func NewNotifier(cfg *config.Config) *Notifier {
 	}
 
 	for _, regex := range cfg.IgnoreRegex {
-		notifier.IgnoreRegex = append(notifier.IgnoreRegex, regexp.MustCompile(regex))
+		notifier.IgnoreRegex = append(
+			notifier.IgnoreRegex,
+			regexp.MustCompile(regex),
+		)
+	}
+
+	// start the proxy
+	if cfg.Proxy {
+		notifier.Proxy = proxy.NewProxy(cfg)
+		go func() {
+			err := notifier.Proxy.Server.ListenAndServe()
+			if err != nil && err != http.ErrServerClosed {
+				utils.PrintError("proxy error: server failed: %v", err)
+				os.Exit(1)
+			}
+		}()
+
+		utils.PrintWatching(
+			"proxy server listening on :%d",
+			notifier.Proxy.ProxyPort,
+		)
 	}
 
 	return notifier
 }
 
-// ShouldIgnore checks whether the given event file or directory should be ignored.
-// If a file, explicitly watched files take precedence over ignored files and regex.
+// ShouldIgnore checks if the given event file or directory should be ignored.
+// If a file, explicitly watched files take precedence over ignored and regex.
 func (n *Notifier) ShouldIgnore(path string, isDir bool) bool {
 	// account for absolute paths
-	path = filepath.Clean(strings.TrimPrefix(path, n.Config.Root+string(filepath.Separator)))
+	path = filepath.Clean(strings.TrimPrefix(
+		path,
+		n.Config.Root+string(filepath.Separator),
+	))
 	if path == "" {
 		return true
 	}
@@ -88,7 +114,7 @@ func (n *Notifier) ShouldIgnore(path string, isDir bool) bool {
 	return false
 }
 
-// HandleNewDir recursively adds the directories at the given path if not ignored.
+// HandleNewDir recursively adds directories at the given path if not ignored.
 func (n *Notifier) HandleNewDir(path string) {
 	filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || !d.IsDir() {
@@ -99,7 +125,8 @@ func (n *Notifier) HandleNewDir(path string) {
 			return fs.SkipDir
 		}
 
-		if err := n.Add(path); err != nil {
+		err = n.Add(path)
+		if err != nil {
 			utils.PrintError("failed to watch %s with err %v", path, err)
 		} else {
 			n.WatchedDirs[path] = struct{}{}
@@ -112,7 +139,8 @@ func (n *Notifier) HandleNewDir(path string) {
 
 // HandleRemovedDir recursively removes watch on directories at the given path.
 func (n *Notifier) HandleRemovedDir(path string) {
-	if err := n.Remove(path); err != nil && !errors.Is(err, fsnotify.ErrNonExistentWatch) {
+	err := n.Remove(path)
+	if err != nil && !errors.Is(err, fsnotify.ErrNonExistentWatch) {
 		utils.PrintError("failed to unwatch %s with error %v", path, err)
 	} else {
 		utils.PrintWatching("unwatched %s", path)
@@ -127,34 +155,38 @@ func (n *Notifier) HandleRemovedDir(path string) {
 	}
 }
 
-// HandleBuild runs the Exec.Build command with the Config.Build directive with logging.
+// HandleBuild runs the Exec.Build with the Config.Build directive with logging.
 func (n *Notifier) HandleBuild() {
 	utils.PrintBuild("building...")
-	if out, err := n.Exec.Build(n.Config.Build); err != nil {
+	out, err := n.Exec.Build(n.Config.Build)
+	if err != nil {
 		utils.PrintError(out)
 	} else if out != "" {
 		println(out)
 	}
 }
 
-// HandleRun runs the Exec.Run command with the Config.Run directive with logging.
+// HandleRun runs the Exec.Run with the Config.Run directive with logging.
 func (n *Notifier) HandleRun() {
 	utils.PrintRun("running...")
-	if err := n.Exec.Run(n.Config.Run); err != nil {
+	err := n.Exec.Run(n.Config.Run)
+	if err != nil {
 		utils.PrintError("%v", err)
 	}
 }
 
-// HandleReset kills any existing processes and runs the Exec.BuildExec.Run command with the Config.Build and Config.Run
-// directives with logging.
+// HandleReset kills any existing processes and runs the Exec.BuildExec.Run
+// with the Config.Build and Config.Run directives with logging.
 func (n *Notifier) HandleReset() {
-	if err := n.Exec.Kill(); err != nil {
+	err := n.Exec.Kill()
+	if err != nil {
 		utils.PrintError("%v", err)
 		return
 	}
 
 	utils.PrintBuild("building...")
-	if out, err := n.Exec.Build(n.Config.Build); err != nil {
+	out, err := n.Exec.Build(n.Config.Build)
+	if err != nil {
 		utils.PrintError(out)
 		return
 	} else if out != "" {
@@ -162,7 +194,8 @@ func (n *Notifier) HandleReset() {
 	}
 
 	utils.PrintRun("running...")
-	if err := n.Exec.Run(n.Config.Run); err != nil {
+	err = n.Exec.Run(n.Config.Run)
+	if err != nil {
 		utils.PrintError("%v", err)
 	}
 }
@@ -188,10 +221,12 @@ func (n *Notifier) Start() {
 			}
 
 			// handle directory events
-			if f, err := os.Stat(event.Name); err == nil && f.IsDir() {
+			f, err := os.Stat(event.Name)
+			if err == nil && f.IsDir() {
 				if n.ShouldIgnore(event.Name, true) {
 					continue
 				}
+
 				if event.Has(fsnotify.Create) || event.Has(fsnotify.Write) {
 					n.HandleNewDir(event.Name)
 				} else {
@@ -209,6 +244,9 @@ func (n *Notifier) Start() {
 			n.Debouncer.Run(200*time.Millisecond, func() {
 				utils.PrintFileChange("%s changed", event.Name)
 				n.HandleReset()
+				if n.Proxy != nil {
+					n.Proxy.Refresh()
+				}
 			})
 
 		case err, ok := <-n.Errors:
@@ -223,7 +261,14 @@ func (n *Notifier) Start() {
 
 // Stop stops any running processes and closes the watcher.
 func (n *Notifier) Stop() {
-	n.Debouncer.timer.Stop()
+	if n.Debouncer.timer != nil {
+		n.Debouncer.timer.Stop()
+	}
+
+	if n.Proxy != nil {
+		n.Proxy.Server.Close()
+	}
+
 	n.Exec.Kill()
 	n.Close()
 }
