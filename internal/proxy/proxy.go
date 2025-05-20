@@ -29,9 +29,12 @@ type Proxy struct {
 // NewProxy returns a newly instantiated Proxy server.
 func NewProxy(cfg *config.Config) *Proxy {
 	proxy := &Proxy{
-		AppPort:     cfg.AppPort,
-		ProxyPort:   cfg.ProxyPort,
-		Client:      &http.Client{},
+		AppPort:   cfg.AppPort,
+		ProxyPort: cfg.ProxyPort,
+		Client: &http.Client{
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			}},
 		SubMu:       &sync.Mutex{},
 		Subscribers: make(map[chan struct{}]struct{}),
 	}
