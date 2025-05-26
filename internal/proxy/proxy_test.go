@@ -15,7 +15,7 @@ var (
 	shouldInject    = "<!DOCTYPE html><html><head><title>test</title><body></body></html>"
 	shouldNotInject = "<!DOCTYPE html><html><head><title>test</title></html>"
 	injected        = fmt.Sprintf(
-		"<!DOCTYPE html><html><head><title>test</title><body>%s</body></html>",
+		"<!DOCTYPE html><html><head><title>test</title><body><script>%s</script></body></html>",
 		proxy.SSE_SCRIPT,
 	)
 )
