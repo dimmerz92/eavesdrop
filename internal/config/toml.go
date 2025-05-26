@@ -8,7 +8,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-const TOML_CONFIG = "eavesdrop.toml"
+const TOML_CONFIG = ".eavesdrop.toml"
 
 // GenerateTomlConfig saves a copy of the default Config struct as a toml file in the given output directory.
 func GenerateTomlConfig(outPath string) error {
