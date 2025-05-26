@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	VERSION = "v0.1.0"
+	VERSION = "v0.1.2"
 	AUTHOR  = "Andrew Weymes <andrew.weymes@sittellalab.com.au>"
 )
 
@@ -25,7 +25,7 @@ var (
 	outF    = pflag.StringP("out", "o", ".", "directory output path")
 	extF    = pflag.StringP("ext", "e", "json", "config file extension")
 	helpF   = pflag.BoolP("help", "h", false, "prints help for a command")
-	configF = pflag.StringP("config", "c", "eavesdrop.json", "config directory")
+	configF = pflag.StringP("config", "c", ".eavesdrop.json", "config directory")
 )
 
 func main() {

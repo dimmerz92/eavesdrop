@@ -8,7 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const YAML_CONFIG = "eavesdrop.yaml"
+const YAML_CONFIG = ".eavesdrop.yaml"
 
 // GenerateYamlConfig saves a copy of the default Config struct as a yaml file in the given output directory.
 func GenerateYamlConfig(outPath string) error {
