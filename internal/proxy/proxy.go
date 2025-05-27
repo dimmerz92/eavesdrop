@@ -54,10 +54,16 @@ func NewProxy(cfg *config.Config) *Proxy {
 // proxyRequest forwards the request to the target app server, injects a server
 // sent event script for automatic browser refreshing.
 func (p *Proxy) proxyRequest(w http.ResponseWriter, r *http.Request) {
+	// rebuild the path, accounting for query parameters
+	path := r.URL.Path
+	if params := r.URL.RawQuery; params != "" {
+		path = fmt.Sprintf("%s?%s", path, params)
+	}
+
 	// create a forwarding request
 	req, err := http.NewRequest(
 		r.Method,
-		fmt.Sprintf("http://localhost:%d%s", p.AppPort, r.URL.Path),
+		fmt.Sprintf("http://localhost:%d%s", p.AppPort, path),
 		r.Body,
 	)
 	if err != nil {

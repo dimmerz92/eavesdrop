@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	VERSION = "v0.1.2"
+	VERSION = "v0.1.3"
 	AUTHOR  = "Andrew Weymes <andrew.weymes@sittellalab.com.au>"
 )
 
