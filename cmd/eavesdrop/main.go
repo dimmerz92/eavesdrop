@@ -14,8 +14,8 @@ import (
 	"github.com/spf13/pflag"
 )
 
-const (
-	VERSION = "v0.1.3"
+var (
+	VERSION string
 	AUTHOR  = "Andrew Weymes <andrew.weymes@sittellalab.com.au>"
 )
 

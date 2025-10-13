@@ -1,0 +1,14 @@
+builds:
+  - goos:
+      - linux
+      - windows
+      - darwin
+    ldflags:
+      - -s -w -X "main.VERSION={{.Version}}"
+    env:
+      - CGO_ENABLED=0
+archives:
+  - id: tar.gz
+    format: tar.gz
+  - id: binary
+    format: binary
