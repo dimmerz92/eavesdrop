@@ -12,7 +12,7 @@ type ExcluderConfig struct {
 }
 
 // ToExcluder returns an initialised *Excluder or a regexp error on failure.
-func (e *ExcluderConfig) ToExcluder(rootDir string) (*Excluder, error) {
+func (e *ExcluderConfig) ToExcluder() (*Excluder, error) {
 	var regexes []*regexp.Regexp
 	for _, pattern := range e.Regex {
 		regex, err := regexp.Compile(pattern)
@@ -36,6 +36,9 @@ type Excluder struct {
 }
 
 // ShouldIgnore returns true if the path should be ignored, otherwise false.
+// args:
+// - path is the relative path to be checked.
+// - isDir specifies whether the path is a directory.
 func (e *Excluder) ShouldIgnore(path string, isDir bool) bool {
 	if isDir {
 		if _, ok := e.Dirs[path]; ok {
