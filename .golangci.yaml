@@ -1,0 +1,25 @@
+version: 2
+linters:
+  default: none
+  enable:
+    - copyloopvar
+    - embeddedstructfieldcheck
+    - errcheck
+    - gocheckcompilerdirectives
+    - godot
+    - gosec
+    - ineffassign
+    - misspell
+    - mnd
+    - noinlineerr
+    - staticcheck
+    - unconvert
+    - unused
+  settings:
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - std-error-handling
+      - common-false-positives
+      - legacy
