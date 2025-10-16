@@ -16,8 +16,10 @@ import (
 )
 
 const (
-	MIN_PORT = 2000
-	MAX_PORT = 65535
+	MIN_PORT      = 2000
+	MAX_PORT      = 65535
+	BACKOFF_RETRY = 100
+	CLOSE_DELAY   = 5
 )
 
 //go:embed proxy.js
@@ -69,8 +71,9 @@ func (p *ProxyConfig) ToProxy() *Proxy {
 	mux.HandleFunc("/eavesdrop_sse", proxy.ClientEvent)
 
 	proxy.Server = &http.Server{
-		Addr:    proxy.ProxyPort,
-		Handler: mux,
+		ReadHeaderTimeout: 0,
+		Addr:              proxy.ProxyPort,
+		Handler:           mux,
 	}
 
 	return proxy
@@ -113,7 +116,7 @@ func (p *Proxy) HandleRequest(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			break
 		}
-		time.Sleep(100 * time.Millisecond) // constant time backoff retry.
+		time.Sleep(BACKOFF_RETRY * time.Millisecond) // constant time backoff retry.
 	}
 
 	if err != nil {
@@ -241,7 +244,7 @@ func (p *Proxy) Refresh() {
 }
 
 func (p *Proxy) Close() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), CLOSE_DELAY*time.Second)
 	defer cancel()
 
 	err := p.Server.Shutdown(ctx)

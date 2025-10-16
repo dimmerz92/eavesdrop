@@ -32,7 +32,8 @@ func TestNotifier_HandleNewDir(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if err := os.Mkdir(test, 0777); err != nil {
+		err := os.Mkdir(test, 0777)
+		if err != nil {
 			t.Fatalf("faile to create folder: %v", err)
 		}
 	}
@@ -88,7 +89,8 @@ func TestNotifier_HandleRemovedDir(t *testing.T) {
 		expected := []string{tmp, filepath.Join(tmp, "keep")}
 
 		for _, test := range tests {
-			if err := os.Mkdir(test, 0777); err != nil {
+			err := os.Mkdir(test, 0777)
+			if err != nil {
 				t.Fatalf("failed to make directory: %v", err)
 			}
 			manager.HandleNewDir(test)
@@ -96,7 +98,8 @@ func TestNotifier_HandleRemovedDir(t *testing.T) {
 
 		time.Sleep(time.Millisecond)
 
-		if err := os.RemoveAll(tests[1]); err != nil {
+		err := os.RemoveAll(tests[1])
+		if err != nil {
 			t.Fatalf("failed to remove directory: %v", err)
 		}
 

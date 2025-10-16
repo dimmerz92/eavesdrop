@@ -74,7 +74,7 @@ func TestJSON(t *testing.T) {
 
 		path := filepath.Join(tmp, eavesdrop.JSON_CONFIG)
 
-		err = os.WriteFile(path, data, 0644)
+		err = os.WriteFile(path, data, 0600)
 		if err != nil {
 			t.Fatalf("failed to save json: %v", err)
 		}
@@ -100,7 +100,7 @@ func TestJSON(t *testing.T) {
 		tmpDir := t.TempDir()
 		path := filepath.Join(tmpDir, "empty.json")
 
-		err := os.WriteFile(path, []byte(""), 0644)
+		err := os.WriteFile(path, []byte(""), 0600)
 		if err != nil {
 			t.Fatalf("failed to write empty json file: %v", err)
 		}
@@ -139,7 +139,7 @@ func TestTOML(t *testing.T) {
 
 		path := filepath.Join(tmp, eavesdrop.TOML_CONFIG)
 
-		err = os.WriteFile(path, data, 0644)
+		err = os.WriteFile(path, data, 0600)
 		if err != nil {
 			t.Fatalf("failed to save toml: %v", err)
 		}
@@ -165,7 +165,7 @@ func TestTOML(t *testing.T) {
 		tmpDir := t.TempDir()
 		path := filepath.Join(tmpDir, "empty.toml")
 
-		err := os.WriteFile(path, []byte(""), 0644)
+		err := os.WriteFile(path, []byte(""), 0600)
 		if err != nil {
 			t.Fatalf("failed to write empty toml file: %v", err)
 		}
@@ -203,7 +203,7 @@ func TestYAML(t *testing.T) {
 
 		path := filepath.Join(tmp, eavesdrop.YAML_CONFIG)
 
-		err = os.WriteFile(path, data, 0644)
+		err = os.WriteFile(path, data, 0600)
 		if err != nil {
 			t.Fatalf("failed to save yaml: %v", err)
 		}
@@ -229,7 +229,7 @@ func TestYAML(t *testing.T) {
 		tmpDir := t.TempDir()
 		path := filepath.Join(tmpDir, "empty.yaml")
 
-		err := os.WriteFile(path, []byte(""), 0644)
+		err := os.WriteFile(path, []byte(""), 0600)
 		if err != nil {
 			t.Fatalf("failed to write empty yaml file: %v", err)
 		}

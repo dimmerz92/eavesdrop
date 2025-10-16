@@ -7,14 +7,18 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fatih/color"
 	"github.com/fsnotify/fsnotify"
 )
 
+const STARTUP_DELAY = 50
+
 type EventManager struct {
 	*fsnotify.Watcher
+
 	Watching  map[string]struct{}
 	Excluder  *Excluder
 	Watchers  []*Watcher
@@ -63,7 +67,7 @@ func NewEventManager(config Config) (*EventManager, error) {
 			return nil, err
 		}
 		manager.Watchers = append(manager.Watchers, watcher)
-		time.Sleep(50 * time.Millisecond) // ensures the watchers run in order on start up
+		time.Sleep(STARTUP_DELAY * time.Millisecond) // ensures the watchers run in order on start up
 	}
 
 	return manager, nil
@@ -154,7 +158,7 @@ func (e *EventManager) HandleNewDir(path string) {
 	})
 
 	if err != nil {
-		panic(fmt.Sprintf("file walk error occured: %v", err))
+		panic(fmt.Sprintf("file walk error occurred: %v", err))
 	}
 }
 
@@ -183,7 +187,7 @@ func (e *EventManager) HandleRemovedDir(path string) {
 func (e *EventManager) Stop() {
 	for _, watcher := range e.Watchers {
 		err := watcher.Close()
-		if err != nil {
+		if err != nil && !strings.Contains(err.Error(), "terminated") {
 			color.Red("%s: %v", watcher.Name, err)
 		}
 	}

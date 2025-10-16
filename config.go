@@ -14,6 +14,13 @@ const (
 	JSON_CONFIG = ".eavesdrop.json"
 	TOML_CONFIG = ".eavesdrop.toml"
 	YAML_CONFIG = ".eavesdrop.yaml"
+
+	DEFAULT_MAXTASKTIME       = 2000
+	DEFAULT_MAXSERVICETIMEOUT = 5000
+	DEFAULT_DEBOUNCEDELAY     = 200
+	DEFAULT_APPPORT           = 8000
+	DEFAULT_PROXYPORT         = 8001
+	DEFAULT_PERMS             = 0600
 )
 
 type Config struct {
@@ -49,15 +56,15 @@ func DefaultConfig() Config {
 			Tasks:             []string{},
 			Service:           "",
 			RunOnStart:        true,
-			MaxTaskTime:       2000,
-			MaxServiceTimeout: 5000,
-			DebounceDelay:     300,
+			MaxTaskTime:       DEFAULT_MAXTASKTIME,
+			MaxServiceTimeout: DEFAULT_MAXSERVICETIMEOUT,
+			DebounceDelay:     DEFAULT_DEBOUNCEDELAY,
 			TriggerRefresh:    false,
 		}},
 		Proxy: ProxyConfig{
 			Enabled:   false,
-			AppPort:   8000,
-			ProxyPort: 8001,
+			AppPort:   DEFAULT_APPPORT,
+			ProxyPort: DEFAULT_PROXYPORT,
 		},
 	}
 }
@@ -129,7 +136,7 @@ func GenerateJsonConfig(outPath string) error {
 		return fmt.Errorf("failed to marshal config to json: %w", err)
 	}
 
-	err = os.WriteFile(path, config, 0644)
+	err = os.WriteFile(path, config, DEFAULT_PERMS)
 	if err != nil {
 		return fmt.Errorf("failed to write config to json file: %w", err)
 	}
@@ -167,7 +174,7 @@ func GenerateTomlConfig(outPath string) error {
 		return fmt.Errorf("failed to marshal config to toml: %w", err)
 	}
 
-	err = os.WriteFile(path, config, 0644)
+	err = os.WriteFile(path, config, DEFAULT_PERMS)
 	if err != nil {
 		return fmt.Errorf("failed to write config to toml file: %w", err)
 	}
@@ -208,7 +215,7 @@ func GenerateYamlConfig(outPath string) error {
 	}
 
 	// save the default config to the given output direcory
-	err = os.WriteFile(path, config, 0644)
+	err = os.WriteFile(path, config, DEFAULT_PERMS)
 	if err != nil {
 		return fmt.Errorf("failed to write config to yaml file: %w", err)
 	}

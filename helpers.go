@@ -16,7 +16,7 @@ func ToSet[T comparable](slice []T) map[T]struct{} {
 	return set
 }
 
-// IsAncestor checks if the path is a child of the directory
+// IsAncestor checks if the path is a child of the directory.
 func IsChild(dir, path string) bool {
 	rel, err := filepath.Rel(dir, path)
 	if err != nil {
