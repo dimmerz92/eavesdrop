@@ -3,6 +3,7 @@ package eavesdrop
 import "time"
 
 type Debouncer struct {
+	Delay time.Duration
 	timer *time.Timer
 	used  bool
 }
@@ -13,14 +14,14 @@ type Debouncer struct {
 // args:
 // - delay is used to define the time before the function is run.
 // - f is the function to be run after the delay time elapses.
-func (d *Debouncer) Run(delay time.Duration, f func()) {
+func (d *Debouncer) Run(f func()) {
 	if d.used {
 		d.timer.Stop()
 	} else {
 		d.used = true
 	}
 
-	d.timer = time.AfterFunc(delay, func() {
+	d.timer = time.AfterFunc(d.Delay, func() {
 		d.used = false
 		f()
 	})

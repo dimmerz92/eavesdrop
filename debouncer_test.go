@@ -10,11 +10,11 @@ import (
 
 func TestDebouncer_Run_SingleCall(t *testing.T) {
 	var called bool
-	d := &eavesdrop.Debouncer{}
+	d := &eavesdrop.Debouncer{Delay: 10 * time.Millisecond}
 
 	done := make(chan struct{})
 
-	d.Run(10*time.Millisecond, func() {
+	d.Run(func() {
 		called = true
 		close(done)
 	})
@@ -31,7 +31,7 @@ func TestDebouncer_Run_SingleCall(t *testing.T) {
 }
 
 func TestDebouncer_Run_ResetTimer(t *testing.T) {
-	d := &eavesdrop.Debouncer{}
+	d := &eavesdrop.Debouncer{Delay: 30 * time.Millisecond}
 
 	var mu sync.Mutex
 	count := 0
@@ -44,11 +44,11 @@ func TestDebouncer_Run_ResetTimer(t *testing.T) {
 		close(done)
 	}
 
-	d.Run(30*time.Millisecond, fn)
+	d.Run(fn)
 
 	time.Sleep(10 * time.Millisecond)
 
-	d.Run(30*time.Millisecond, fn)
+	d.Run(fn)
 
 	select {
 	case <-done:
@@ -64,7 +64,7 @@ func TestDebouncer_Run_ResetTimer(t *testing.T) {
 }
 
 func TestDebouncer_Run_MultipleRapidCalls(t *testing.T) {
-	d := &eavesdrop.Debouncer{}
+	d := &eavesdrop.Debouncer{Delay: 30 * time.Millisecond}
 
 	var mu sync.Mutex
 	count := 0
@@ -78,7 +78,7 @@ func TestDebouncer_Run_MultipleRapidCalls(t *testing.T) {
 	}
 
 	for range 5 {
-		d.Run(30*time.Millisecond, fn)
+		d.Run(fn)
 		time.Sleep(5 * time.Millisecond)
 	}
 
