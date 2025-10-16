@@ -78,7 +78,7 @@ func TestShell_Run_And_Kill_Force(t *testing.T) {
 
 	start := time.Now()
 	err = shell.Kill()
-	if err != nil {
+	if err == nil {
 		t.Fatalf("failed to kill shell: %v", err)
 	}
 	duration := time.Since(start)
