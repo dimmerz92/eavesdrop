@@ -32,6 +32,8 @@ func TestProxyConfig_Validate(t *testing.T) {
 			err := test.config.Validate()
 			if test.wantErr && err == nil {
 				t.Fatal("expected error, got none")
+			} else if !test.wantErr && err != nil {
+				t.Fatalf("expected nil, got %v", err)
 			}
 		})
 	}
