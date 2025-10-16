@@ -49,7 +49,7 @@ func TestExcluderConfig_ToExcluder(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			excluder, err := test.config.ToExcluder("")
+			excluder, err := test.config.ToExcluder()
 
 			if test.wantErr {
 				if err == nil {
@@ -76,7 +76,7 @@ func TestExcluderConfig_ToExcluder(t *testing.T) {
 			}
 			for i, r := range test.wantRegex {
 				if excluder.Regex[i].String() != r {
-					t.Errorf("expected regex %q, got %q", r, excluder.Regex[i].String())
+					t.Errorf("expected regex %s, got %s", r, excluder.Regex[i].String())
 				}
 			}
 		})
@@ -146,7 +146,7 @@ func TestExcluder_ShouldIgnore(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			got := excluder.ShouldIgnore(test.path, test.isDir)
 			if got != test.expect {
-				t.Errorf("got %v; want %v", got, test.expect)
+				t.Errorf("got %t; want %t", got, test.expect)
 			}
 		})
 	}
