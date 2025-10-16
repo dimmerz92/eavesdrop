@@ -82,3 +82,17 @@ func TestToSet_Strings(t *testing.T) {
 		})
 	}
 }
+
+func TestIsChild(t *testing.T) {
+	t.Run("test valid child", func(t *testing.T) {
+		if !eavesdrop.IsChild("a/b", "a/b/c/file") {
+			t.Fatalf("expected true, got false")
+		}
+	})
+
+	t.Run("test invalid", func(t *testing.T) {
+		if eavesdrop.IsChild("a/b", "x/y/z/file") {
+			t.Fatalf("expected false, got true")
+		}
+	})
+}
