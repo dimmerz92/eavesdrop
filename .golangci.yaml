@@ -1,4 +1,4 @@
-version: 2
+version: "2"
 linters:
   default: none
   enable:
@@ -15,7 +15,6 @@ linters:
     - staticcheck
     - unconvert
     - unused
-  settings:
   exclusions:
     generated: lax
     presets:
