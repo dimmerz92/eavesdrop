@@ -53,7 +53,7 @@ func (w *WatcherConfig) Validate() error {
 // ToWatcher returns an initialised and ready watcher.
 // Runs the tasks and service if the RunOnStart flag is true.
 func (w *WatcherConfig) ToWatcher(root string, proxy *Proxy) (*Watcher, error) {
-	excluder, err := w.Exclude.ToExcluder()
+	excluder, err := w.Exclude.ToExcluder(root)
 	if err != nil {
 		return nil, err
 	}

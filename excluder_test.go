@@ -49,7 +49,7 @@ func TestExcluderConfig_ToExcluder(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			excluder, err := test.config.ToExcluder()
+			excluder, err := test.config.ToExcluder(".")
 
 			if test.wantErr {
 				if err == nil {
@@ -85,7 +85,8 @@ func TestExcluderConfig_ToExcluder(t *testing.T) {
 
 func TestExcluder_ShouldIgnore(t *testing.T) {
 	excluder := &eavesdrop.Excluder{
-		Dirs: map[string]struct{}{"ignore_dir": {}, ".git": {}},
+		RootDir: ".",
+		Dirs:    map[string]struct{}{"ignore_dir": {}, ".git": {}},
 		Files: map[string]struct{}{"ignore_file.txt": {},
 			".env":   {},
 			"./.env": {}, "dir/.env": {}, "./dir/.env": {},
