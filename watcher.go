@@ -141,7 +141,7 @@ func (w *Watcher) Notify(path string) {
 			return
 		}
 
-		if w.TriggerRefresh {
+		if w.Proxy != nil && w.TriggerRefresh {
 			w.Proxy.Refresh()
 		}
 	})
@@ -159,7 +159,7 @@ func (w *Watcher) RunTasks() error {
 			}
 
 			if output != "" {
-				color.Cyan("%s: %s", w.Name, output)
+				println(color.CyanString("%s:", w.Name), output)
 			}
 		}
 	}

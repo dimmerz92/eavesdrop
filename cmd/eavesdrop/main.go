@@ -61,12 +61,14 @@ func runEavesdrop() {
 
 	config, err := eavesdrop.GetConfig(*path)
 	if err != nil {
-		color.Red("error: no config found: %v", err)
+		color.Red("error: %v", err)
+		os.Exit(1)
 	}
 
 	manager, err := eavesdrop.NewEventManager(config)
 	if err != nil {
 		color.Red("error: %v", err)
+		os.Exit(1)
 	}
 
 	go manager.Start()
@@ -105,16 +107,16 @@ Live reloading for Go apps
 var help = splash +
 	color.YellowString("USAGE:\n") +
 	color.WhiteString("\teavesdrop ") +
-	color.BlueString("[COMMANDS] ") + color.MagentaString("[OPTIONS]\n\n") +
+	color.BlueString("[COMMAND] ") + color.MagentaString("[OPTIONS]\n\n") +
 	color.YellowString("COMMANDS:\n") +
 	color.BlueString("\tinit ") + color.MagentaString("[options]\n") +
-	color.WhiteString("\tGenerates a config file.\n\n") +
+	color.WhiteString("\tGenerates a config file.\n") +
+	color.MagentaString("\t-out") + color.WhiteString(" directory to save the generated config. Defaults to .\n") +
+	color.MagentaString("\t-ext") + color.WhiteString(" the filetype to generate (.json, .toml, .yaml). Defaults to .json\n\n") +
 	color.BlueString("\thelp\n") +
 	color.WhiteString("\tPrints help text for eavesdrop.\n") +
 	color.WhiteString("\tUse --help or -h flags for help on commands.\n\n") +
 	color.YellowString("OPTIONS:\n") +
-	color.MagentaString("\t--config, -c\n") +
-	color.WhiteString("\tThe directory containing the config file.\n") +
-	color.WhiteString("\tDefaults to project root if not supplied.\n\n") +
-	color.BlueString("\t<command> ") + color.MagentaString("--help, -h\n") +
-	color.WhiteString("\tPrints help details for the given command.\n")
+	color.WhiteString("The following options can be used when running without a command:\n") +
+	color.MagentaString("\t-config\n") +
+	color.WhiteString("\tThe directory containing the config file. Defaults to .\n")
