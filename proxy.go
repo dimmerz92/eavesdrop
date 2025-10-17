@@ -99,7 +99,7 @@ func (p *Proxy) HandleRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// create a forwarding request and clone headers.
-	req, err := http.NewRequest(r.Method, fmt.Sprintf("127.0.0.1%s%s", p.AppPort, path), r.Body)
+	req, err := http.NewRequest(r.Method, fmt.Sprintf("http://127.0.0.1%s%s", p.AppPort, path), r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		color.Red("proxy error: %v", err)
@@ -143,7 +143,7 @@ func (p *Proxy) HandleRequest(w http.ResponseWriter, r *http.Request) {
 	// write the response body.
 	if !strings.Contains(resp.Header.Get("Content-Type"), "text/html") {
 		w.Header().Set("Content-Length", resp.Header.Get("Content-Length"))
-		_, err := io.Copy(w, req.Body)
+		_, err := io.Copy(w, resp.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			color.Red("proxy error: %v", err)
