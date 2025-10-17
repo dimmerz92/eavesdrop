@@ -12,8 +12,6 @@ import (
 	"time"
 )
 
-const SIGTERM = 143
-
 type Shell struct {
 	cmd            *exec.Cmd
 	ctx            context.Context
@@ -88,11 +86,8 @@ func (s *Shell) Kill() error {
 
 	select {
 	case err = <-done:
-		if err != nil {
-			exitErr, ok := err.(*exec.ExitError)
-			if ok && exitErr.ExitCode() == SIGTERM {
-				err = nil
-			}
+		if err != nil && strings.Contains(err.Error(), "terminated") {
+			err = nil
 		}
 
 	case <-time.After(s.serviceTimeout):

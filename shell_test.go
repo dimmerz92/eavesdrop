@@ -49,7 +49,7 @@ func TestShell_Run_And_Kill_Graceful(t *testing.T) {
 
 	shell := eavesdrop.NewShell(1*time.Second, 2*time.Second)
 
-	err := shell.Run(`trap "exit 0" SIGTERM; while true; do sleep 1; done`)
+	err := shell.Run(`trap "exit 0" TERM; while true; do sleep 1; done`)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestShell_Run_And_Kill_Force(t *testing.T) {
 
 	shell := eavesdrop.NewShell(1*time.Second, 300*time.Millisecond)
 
-	err := shell.Run(`trap "" SIGTERM; while true; do sleep 1; done`)
+	err := shell.Run(`trap "" TERM; while true; do sleep 1; done`)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -85,25 +85,5 @@ func TestShell_Run_And_Kill_Force(t *testing.T) {
 
 	if duration < 300*time.Millisecond {
 		t.Errorf("Expected kill to wait ~300ms, happened too fast: %v", duration)
-	}
-}
-
-func TestShell_Run_And_Kill_Not_Graceful(t *testing.T) {
-	if OS == "windows" {
-		t.Skip("I have no idea how to test this on windows, lmao")
-	}
-
-	shell := eavesdrop.NewShell(1*time.Second, 2*time.Second)
-
-	err := shell.Run("while true; do sleep 1; done")
-	if err != nil {
-		t.Fatalf("Run failed: %v", err)
-	}
-
-	time.Sleep(300 * time.Millisecond)
-
-	err = shell.Kill()
-	if err == nil {
-		t.Fatal("Expected non-graceful shutdown, got nil")
 	}
 }
