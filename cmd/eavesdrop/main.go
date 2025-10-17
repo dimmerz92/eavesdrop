@@ -100,7 +100,7 @@ var splash = fmt.Sprintf(`
 ╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚══════╝╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝
 %s
 %s
-Live reloading for Go apps
+Live reloading for any app!
 
 `, VERSION, AUTHOR)
 
