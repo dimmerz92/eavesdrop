@@ -1,5 +1,6 @@
 builds:
-  - goos:
+  - main: ./cmd/eavesdrop
+    goos:
       - linux
       - windows
       - darwin

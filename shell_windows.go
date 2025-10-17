@@ -7,18 +7,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"slices"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/fatih/color"
 	"golang.org/x/sys/windows"
-)
-
-const (
-	GENERAL = 1
-	BREAK   = 0xC000013A // 3221225786 CTRL_BREAK_EVENT
-	DLL     = 0xC0000142 // 3221225794
 )
 
 type Shell struct {
@@ -93,12 +87,8 @@ func (s *Shell) Kill() error {
 
 	select {
 	case err = <-done:
-		if err != nil {
-			exitErr, ok := err.(*exec.ExitError)
-			if ok && slices.Contains([]int{BREAK, GENERAL, DLL}, exitErr.ExitCode()) {
-				err = nil
-			}
-		}
+		color.Yellow("warning: %v", err)
+		err = nil
 
 	case <-time.After(s.serviceTimeout):
 		_ = s.cmd.Process.Kill()
