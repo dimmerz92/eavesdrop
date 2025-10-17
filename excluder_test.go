@@ -94,7 +94,7 @@ func TestExcluder_ShouldIgnore(t *testing.T) {
 		},
 		Regex: []*regexp.Regexp{
 			regexp.MustCompile(`.*\.log$`),
-			regexp.MustCompile(`^tmp/`),
+			regexp.MustCompile(`^tmp[/\\]`),
 			regexp.MustCompile(`^\.?(\/?|\\?)(?:\w+(\/|\\))*(\.\w+)$`),
 		},
 	}
