@@ -2,6 +2,7 @@ package eavesdrop
 
 import (
 	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/fatih/color"
@@ -109,9 +110,9 @@ type Watcher struct {
 
 // Notify passes the file change event path to watcher to handle.
 func (w *Watcher) Notify(path string) {
-	_, watchedExt := w.Exts[path]
+	_, watchedExt := w.Exts[filepath.Ext(path)]
 	_, watchedFiles := w.Files[path]
-	if !watchedExt || !watchedFiles {
+	if !watchedExt && !watchedFiles {
 		return
 	}
 
