@@ -86,7 +86,8 @@ func (s *Shell) Kill() error {
 	done := make(chan error, 1)
 	go func() { done <- s.cmd.Wait() }()
 
-	_ = windows.GenerateConsoleCtrlEvent(windows.CTRL_BREAK_EVENT, uint32(s.cmd.Process.Pid))
+	// ignore lint error, Windows PIDs are always 32-bit
+	_ = windows.GenerateConsoleCtrlEvent(windows.CTRL_BREAK_EVENT, uint32(s.cmd.Process.Pid)) //nolint:gosec
 
 	var err error
 
