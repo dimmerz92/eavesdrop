@@ -1,0 +1,29 @@
+root_dir = "."
+tmp = false
+cleanup_tmp = false
+
+[exclude]
+  dirs = ["data", "dist", "node_modules", "tmp"]
+  files = []
+  regex = ["^\\.?(\\/?|\\\\?)(?:\\w+(\\/|\\\\))*(\\.\\w+)$", "^.+\\.sqlite$", "^.+\\.wal$", "^.+\\.shm$"]
+
+[[watchers]]
+  name = "watcher"
+  file_types = []
+  file_names = []
+  tasks = []
+  service = ""
+  run_on_start = true
+  max_task_time = 2000
+  max_service_timeout = 5000
+  debounce_delay = 200
+  trigger_refresh = false
+  [watchers.exclude]
+    dirs = []
+    files = []
+    regex = []
+
+[proxy]
+  enabled = false
+  app_port = 8000
+  proxy_port = 8001

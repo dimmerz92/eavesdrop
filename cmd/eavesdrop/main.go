@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -22,27 +23,32 @@ var (
 func main() {
 	args := os.Args
 
-	// TODO: run without args
 	if len(args) == 1 {
 		runEavesdrop()
 		return
 	}
 
-	switch args[1] {
-	case "help":
+	switch {
+	case args[1] == "help":
 		println(help)
-		return
 
-	case "init":
-		outputDir := flag.String("out", ".", "the desired output directory")
-		ext := flag.String("ext", ".json", "the desired format ('.json', '.toml', '.yaml')")
-		flag.Parse()
+	case args[1] == "init":
+		f := flag.NewFlagSet("init", flag.ContinueOnError)
+		outputDir := f.String("out", ".", "the desired output directory")
+		ext := f.String("ext", ".json", "the desired format ('.json', '.toml', '.yaml')")
+		err := f.Parse(args[2:])
+		if err != nil {
+			color.Red("error: %v", err)
+			os.Exit(1)
+		}
 
-		err := eavesdrop.GenerateConfig(*outputDir, *ext)
+		err = eavesdrop.GenerateConfig(*outputDir, *ext)
 		if err != nil {
 			color.Red("error: %v", err)
 		}
-		return
+
+	case strings.HasPrefix(args[1], "-"):
+		runEavesdrop()
 
 	default:
 		fmt.Printf("eavesdrop %s: unknown command\nRun 'eavesdrop help' for usage.", args[1])
@@ -53,11 +59,8 @@ func main() {
 func runEavesdrop() {
 	println(splash)
 
-	path := flag.String("config", ".", "the path to the config file")
-
-	if *path == "." {
-		*path = ".eavesdrop.json"
-	}
+	path := flag.String("config", ".eavesdrop.json", "the path to the config file")
+	flag.Parse()
 
 	config, err := eavesdrop.GetConfig(*path)
 	if err != nil {
@@ -75,6 +78,7 @@ func runEavesdrop() {
 
 	wg.Add(1)
 	go cleanup(manager)
+
 	wg.Wait()
 }
 
@@ -83,8 +87,6 @@ func cleanup(manager *eavesdrop.EventManager) {
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-
-	// block and wait for a signal
 	s := <-sig
 
 	color.Cyan("shutdown with signal: %s", s.String())
@@ -114,9 +116,8 @@ var help = splash +
 	color.MagentaString("\t-out") + color.WhiteString(" directory to save the generated config. Defaults to .\n") +
 	color.MagentaString("\t-ext") + color.WhiteString(" the filetype to generate (.json, .toml, .yaml). Defaults to .json\n\n") +
 	color.BlueString("\thelp\n") +
-	color.WhiteString("\tPrints help text for eavesdrop.\n") +
-	color.WhiteString("\tUse --help or -h flags for help on commands.\n\n") +
+	color.WhiteString("\tPrints help text for eavesdrop.\n\n") +
 	color.YellowString("OPTIONS:\n") +
 	color.WhiteString("The following options can be used when running without a command:\n") +
 	color.MagentaString("\t-config\n") +
-	color.WhiteString("\tThe directory containing the config file. Defaults to .\n")
+	color.WhiteString("\tThe path of the config file. Defaults to ./.eavesdrop.json\n")
