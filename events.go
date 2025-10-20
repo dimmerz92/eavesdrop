@@ -14,16 +14,21 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-const STARTUP_DELAY = 50
+const (
+	STARTUP_DELAY = 50
+	TMP_PERMS     = 0600
+)
 
 type EventManager struct {
 	*fsnotify.Watcher
 
-	Watching  map[string]struct{}
-	Excluder  *Excluder
-	Watchers  []*Watcher
-	StatCache map[string]os.FileInfo
-	Proxy     *Proxy
+	RootDir    string
+	CleanupTmp bool
+	Watching   map[string]struct{}
+	Excluder   *Excluder
+	Watchers   []*Watcher
+	StatCache  map[string]os.FileInfo
+	Proxy      *Proxy
 }
 
 func NewEventManager(config Config) (*EventManager, error) {
@@ -32,10 +37,19 @@ func NewEventManager(config Config) (*EventManager, error) {
 		return nil, err
 	}
 
+	if config.Tmp {
+		err = os.MkdirAll(filepath.Join(config.RootDir, "tmp"), TMP_PERMS)
+		if err != nil {
+			return nil, fmt.Errorf("error: %v", err)
+		}
+	}
+
 	manager := &EventManager{
-		Watching:  make(map[string]struct{}),
-		Excluder:  excluder,
-		StatCache: make(map[string]os.FileInfo),
+		RootDir:    config.RootDir,
+		CleanupTmp: config.CleanupTmp,
+		Watching:   make(map[string]struct{}),
+		Excluder:   excluder,
+		StatCache:  make(map[string]os.FileInfo),
 	}
 
 	manager.Watcher, err = fsnotify.NewWatcher()
@@ -194,6 +208,13 @@ func (e *EventManager) Stop() {
 
 	if e.Proxy != nil {
 		err := e.Proxy.Server.Close()
+		if err != nil {
+			color.Red(err.Error())
+		}
+	}
+
+	if e.CleanupTmp {
+		err := os.RemoveAll(filepath.Join(e.RootDir, "tmp"))
 		if err != nil {
 			color.Red(err.Error())
 		}

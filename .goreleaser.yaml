@@ -1,3 +1,4 @@
+version: 2
 builds:
   - main: ./cmd/eavesdrop
     goos:
@@ -10,6 +11,6 @@ builds:
       - CGO_ENABLED=0
 archives:
   - id: tar.gz
-    format: tar.gz
+    formats: ["tar.gz"]
   - id: binary
-    format: binary
+    formats: ["binary"]
