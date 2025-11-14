@@ -16,7 +16,7 @@ import (
 
 const (
 	STARTUP_DELAY = 50
-	TMP_PERMS     = 0600
+	TMP_PERMS     = 0755
 )
 
 type EventManager struct {
