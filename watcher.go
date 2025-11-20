@@ -19,6 +19,7 @@ type WatcherConfig struct {
 	MaxTaskTime       int64          `json:"max_task_time" toml:"max_task_time" yaml:"max_task_time"`
 	MaxServiceTimeout int64          `json:"max_service_timeout" toml:"max_service_timeout" yaml:"max_service_timeout"`
 	DebounceDelay     int64          `json:"debounce_delay" toml:"debounce_delay" yaml:"debounce_delay"`
+	RefreshDelay      int64          `json:"refresh_delay" toml:"refresh_delay" yaml:"refresh_delay"`
 	TriggerRefresh    bool           `json:"trigger_refresh" toml:"trigger_refresh" yaml:"trigger_refresh"`
 }
 
@@ -48,6 +49,10 @@ func (w *WatcherConfig) Validate() error {
 		return fmt.Errorf("%s: debounce delay cannot be negative", w.Name)
 	}
 
+	if w.RefreshDelay < 0 {
+		return fmt.Errorf("%s: refresh delay cannot be negative", w.Name)
+	}
+
 	return nil
 }
 
@@ -69,6 +74,7 @@ func (w *WatcherConfig) ToWatcher(root string, proxy *Proxy) (*Watcher, error) {
 		Shell:          NewShell(time.Millisecond*time.Duration(w.MaxTaskTime), time.Millisecond*time.Duration(w.MaxServiceTimeout)),
 		Debouncer:      &Debouncer{Delay: time.Millisecond * time.Duration(w.DebounceDelay)},
 		Proxy:          proxy,
+		RefreshDelay:   time.Duration(w.RefreshDelay),
 		TriggerRefresh: w.TriggerRefresh,
 	}
 
@@ -87,6 +93,7 @@ func (w *WatcherConfig) ToWatcher(root string, proxy *Proxy) (*Watcher, error) {
 			}
 
 			if watcher.TriggerRefresh {
+				time.Sleep(watcher.RefreshDelay)
 				watcher.Proxy.Refresh()
 			}
 		})
@@ -105,6 +112,7 @@ type Watcher struct {
 	Shell          *Shell
 	Debouncer      *Debouncer
 	Proxy          *Proxy
+	RefreshDelay   time.Duration
 	TriggerRefresh bool
 }
 
@@ -142,6 +150,7 @@ func (w *Watcher) Notify(path string) {
 		}
 
 		if w.Proxy != nil && w.TriggerRefresh {
+			time.Sleep(w.RefreshDelay)
 			w.Proxy.Refresh()
 		}
 	})

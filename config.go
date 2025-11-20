@@ -18,6 +18,7 @@ const (
 	DEFAULT_MAXTASKTIME       = 2000
 	DEFAULT_MAXSERVICETIMEOUT = 5000
 	DEFAULT_DEBOUNCEDELAY     = 200
+	DEFAULT_REFRESHDELAY      = 200
 	DEFAULT_APPPORT           = 8000
 	DEFAULT_PROXYPORT         = 8001
 	DEFAULT_PERMS             = 0600
@@ -59,6 +60,7 @@ func DefaultConfig() Config {
 			MaxTaskTime:       DEFAULT_MAXTASKTIME,
 			MaxServiceTimeout: DEFAULT_MAXSERVICETIMEOUT,
 			DebounceDelay:     DEFAULT_DEBOUNCEDELAY,
+			RefreshDelay:      DEFAULT_REFRESHDELAY,
 			TriggerRefresh:    false,
 		}},
 		Proxy: ProxyConfig{
