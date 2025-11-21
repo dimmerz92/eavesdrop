@@ -74,7 +74,7 @@ func (w *WatcherConfig) ToWatcher(root string, proxy *Proxy) (*Watcher, error) {
 		Shell:          NewShell(time.Millisecond*time.Duration(w.MaxTaskTime), time.Millisecond*time.Duration(w.MaxServiceTimeout)),
 		Debouncer:      &Debouncer{Delay: time.Millisecond * time.Duration(w.DebounceDelay)},
 		Proxy:          proxy,
-		RefreshDelay:   time.Duration(w.RefreshDelay),
+		RefreshDelay:   time.Millisecond * time.Duration(w.RefreshDelay),
 		TriggerRefresh: w.TriggerRefresh,
 	}
 
