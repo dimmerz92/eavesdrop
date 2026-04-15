@@ -2,207 +2,149 @@ package eavesdrop_test
 
 import (
 	"bufio"
+	"bytes"
 	"context"
-	"io"
+	"errors"
+	"fmt"
 	"net/http"
-	"net/http/httptest"
-	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/dimmerz92/eavesdrop"
 )
 
-func TestProxyConfig_Validate(t *testing.T) {
-	tests := []struct {
-		name    string
-		config  eavesdrop.ProxyConfig
-		wantErr bool
-	}{
-		{"Valid config", eavesdrop.ProxyConfig{Enabled: true, AppPort: 3000, ProxyPort: 4000}, false},
-		{"Same ports", eavesdrop.ProxyConfig{Enabled: true, AppPort: 3000, ProxyPort: 3000}, true},
-		{"App port out of range", eavesdrop.ProxyConfig{Enabled: true, AppPort: 1024, ProxyPort: 4000}, true},
-		{"Proxy port out of range", eavesdrop.ProxyConfig{Enabled: true, AppPort: 3000, ProxyPort: 70000}, true},
-		{"Disabled config", eavesdrop.ProxyConfig{Enabled: false}, false},
-	}
+func TestProxy(t *testing.T) {
+	t.Run("failed construction", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("expected panic")
+			}
+		}()
+		eavesdrop.NewProxy(t.Context(),
+			eavesdrop.WithAppPort(8000),
+			eavesdrop.WithProxyPort(8000),
+		)
+	})
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			err := test.config.Validate()
-			if test.wantErr && err == nil {
-				t.Fatal("expected error, got none")
-			} else if !test.wantErr && err != nil {
-				t.Fatalf("expected nil, got %v", err)
+	t.Run("sse handling and script injection", func(t *testing.T) {
+		proxy := eavesdrop.NewProxy(t.Context(),
+			eavesdrop.WithAppPort(8000),
+			eavesdrop.WithProxyPort(8001),
+		)
+
+		htmlWithBody := "<html><body>Test</body></html>"
+		expectedWithBody := fmt.Sprintf("<html><body>Test<script>%s</script></body></html>", eavesdrop.SSE_SCRIPT)
+		htmlWithBodyHandler := func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte(htmlWithBody))
+		}
+
+		htmlNoBody := "<html>Test</html>"
+		expectedNoBody := htmlNoBody
+		htmlNoBodyHandler := func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte(htmlNoBody))
+		}
+
+		http.HandleFunc("GET /with", htmlWithBodyHandler)
+		http.HandleFunc("GET /without", htmlNoBodyHandler)
+
+		errCh := make(chan error, 1)
+		go func() {
+			errCh <- http.ListenAndServe(":8000", nil)
+		}()
+
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+
+		defer func() {
+			if r := recover(); r != nil {
+				t.Fatalf("unexpected panic: %v", r)
+			}
+		}()
+
+		go func() {
+			select {
+			case err := <-errCh:
+				if err != nil && !errors.Is(err, http.ErrServerClosed) {
+					panic(err)
+				}
+
+			case <-ctx.Done():
+				return
+			}
+		}()
+
+		t.Run("script injected", func(t *testing.T) {
+			resp, err := http.Get("http://127.0.0.1:8001/with")
+			if err != nil {
+				t.Fatalf("failed to send GET: %v", err)
+			}
+			defer resp.Body.Close()
+
+			var buf bytes.Buffer
+			if _, err = buf.ReadFrom(resp.Body); err != nil {
+				t.Fatalf("failed to read from body: %v", err)
+			}
+
+			if got := buf.String(); got != expectedWithBody {
+				t.Errorf("expected %s, got %s", expectedWithBody, got)
 			}
 		})
-	}
-}
 
-func TestProxyConfig_ToProxy(t *testing.T) {
-	cfg := eavesdrop.ProxyConfig{Enabled: true, AppPort: 3000, ProxyPort: 4000}
-	proxy := cfg.ToProxy()
-
-	if proxy == nil {
-		t.Fatal("expected non-nil proxy")
-	}
-
-	if proxy.AppPort != ":3000" || proxy.ProxyPort != ":4000" {
-		t.Fatalf("unexpected proxy ports: got %s / %s", proxy.AppPort, proxy.ProxyPort)
-	}
-}
-
-func TestProxy_InjectSSE_WithBodyTag(t *testing.T) {
-	resp := &http.Response{
-		Body:   io.NopCloser(strings.NewReader(`<html><body>Hello world</body></html>`)),
-		Header: http.Header{"Content-Type": []string{"text/html"}},
-	}
-
-	proxy := &eavesdrop.Proxy{}
-
-	modified, err := proxy.InjectSSE(resp)
-	if err != nil {
-		t.Fatalf("expected injection, got %v", err)
-	}
-
-	result := string(modified)
-	if !strings.Contains(result, "<script>") {
-		t.Fatal("expected injected <script> tag")
-	}
-
-	if !strings.Contains(result, eavesdrop.SSE_SCRIPT) {
-		t.Fatal("expected injected SSE_SCRIPT content")
-	}
-
-	if !strings.HasSuffix(result, "</body></html>") {
-		t.Fatalf("expected content to end with </body></html>, got %s", result)
-	}
-}
-
-func TestProxy_InjectSSE_NoBodyTag(t *testing.T) {
-	resp := &http.Response{
-		Body:   io.NopCloser(strings.NewReader(`<html><head></head><div>Content</div></html>`)),
-		Header: http.Header{"Content-Type": []string{"text/html"}},
-	}
-
-	proxy := &eavesdrop.Proxy{}
-
-	modified, err := proxy.InjectSSE(resp)
-	if err != nil {
-		t.Fatalf("InjectSSE error: %v", err)
-	}
-
-	result := string(modified)
-	if strings.Contains(result, "<script>") {
-		t.Fatalf("expected no <script> tag injection")
-	}
-}
-
-func TestProxy_RefreshBroadcast(t *testing.T) {
-	proxy := &eavesdrop.Proxy{
-		Subscribers:   make(map[chan struct{}]struct{}),
-		SubscribersMu: &sync.Mutex{},
-	}
-
-	ch1 := make(chan struct{}, 1)
-	ch2 := make(chan struct{}, 1)
-
-	proxy.SubscribersMu.Lock()
-	proxy.Subscribers[ch1] = struct{}{}
-	proxy.Subscribers[ch2] = struct{}{}
-	proxy.SubscribersMu.Unlock()
-
-	proxy.Refresh()
-
-	select {
-	case <-ch1:
-	default:
-		t.Fatalf("expected refresh signal on ch1")
-	}
-
-	select {
-	case <-ch2:
-	default:
-		t.Fatalf("expected refresh signal on ch2")
-	}
-}
-
-func TestClientEvent(t *testing.T) {
-	proxy := &eavesdrop.Proxy{
-		Subscribers:   make(map[chan struct{}]struct{}),
-		SubscribersMu: &sync.Mutex{},
-	}
-
-	server := httptest.NewServer(http.HandlerFunc(proxy.ClientEvent))
-	defer server.Close()
-
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, "GET", server.URL, nil)
-	if err != nil {
-		t.Fatalf("failed to create request: %v", err)
-	}
-
-	respCh := make(chan *http.Response, 1)
-	errCh := make(chan error, 1)
-	go func() {
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			errCh <- err
-			return
-		}
-		respCh <- resp
-	}()
-
-	var ch chan struct{}
-	for start := time.Now(); time.Since(start) < 2*time.Second; {
-		proxy.SubscribersMu.Lock()
-		if len(proxy.Subscribers) == 1 {
-			for c := range proxy.Subscribers {
-				ch = c
+		t.Run("no script injected", func(t *testing.T) {
+			resp, err := http.Get("http://127.0.0.1:8001/without")
+			if err != nil {
+				t.Fatalf("failed to send GET: %v", err)
 			}
-			proxy.SubscribersMu.Unlock()
-			break
-		}
-		proxy.SubscribersMu.Unlock()
-		time.Sleep(10 * time.Millisecond)
-	}
+			defer resp.Body.Close()
 
-	ch <- struct{}{}
+			var buf bytes.Buffer
+			if _, err = buf.ReadFrom(resp.Body); err != nil {
+				t.Fatalf("failed to read from body: %v", err)
+			}
 
-	var resp *http.Response
-	select {
-	case resp = <-respCh:
-	case err = <-errCh:
-		t.Fatalf("failed to get a response: %v", err)
-	case <-time.After(time.Second):
-		t.Fatal("timeout waiting for response headers")
-	}
+			if got := buf.String(); got != expectedNoBody {
+				t.Errorf("expected %s, got %s", expectedNoBody, got)
+			}
+		})
 
-	defer resp.Body.Close()
+		t.Run("sse refresh handling", func(t *testing.T) {
+			req, _ := http.NewRequest("GET", "http://127.0.0.1:8001/eavesdrop-sse", nil)
+			req.Header.Set("Accept", "text/event-stream")
 
-	header := resp.Header.Get("Content-Type")
-	if header != "text/event-stream" {
-		t.Fatalf("expected 'text/event-stream', got %s", header)
-	}
+			client := http.Client{Timeout: 0}
+			resp, err := client.Do(req)
+			if err != nil {
+				t.Fatalf("failed to resolve request: %v", err)
+			}
+			defer resp.Body.Close()
 
-	reader := bufio.NewReader(resp.Body)
-	line, err := reader.ReadString('\n')
-	if err != nil {
-		t.Fatalf("failed to read SSE data: %v", err)
-	}
+			out := make(chan string, 1)
+			go func() {
+				scanner := bufio.NewScanner(resp.Body)
+				for scanner.Scan() {
+					line := scanner.Text()
+					if line == "data: refresh" {
+						out <- line
+					}
+				}
+			}()
 
-	if !strings.Contains(line, "data: refresh") {
-		t.Fatalf("expected 'data: refresh', got %s", line)
-	}
+			proxy.RefreshBrowser()
 
-	cancel()
-	time.Sleep(50 * time.Millisecond)
+			ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+			defer cancel()
 
-	proxy.SubscribersMu.Lock()
-	defer proxy.SubscribersMu.Unlock()
-	if len(proxy.Subscribers) != 0 {
-		t.Fatal("expected subscriber cleanup")
-	}
+			expected := "data: refresh"
+			select {
+			case <-ctx.Done():
+				t.Error("failed to receive refresh broadcast")
+
+			case got := <-out:
+				if got != expected {
+					t.Errorf("expected %s, got %s", expected, got)
+				}
+			}
+		})
+
+	})
 }
