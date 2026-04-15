@@ -15,22 +15,6 @@ const (
 	DefaultServiceShutdownTimeout = 5 * time.Second
 )
 
-// var (
-// 	ErrShellBlankTask      = errors.New("provided task command was a blank string")
-// 	ErrShellBlankService   = errors.New("provided service command was a blank string")
-// 	ErrShellInvalidTimeout = errors.New("shell requires positive nonzero task and service timeout")
-// 	ErrNilShell            = errors.New("nil shell")
-// )
-
-// type Shell interface {
-// 	RunTask(task string) error
-// 	RunService(service string) error
-// 	StopService() error
-// 	SignalProcessGroup(signal syscall.Signal) error
-// 	TerminateProcessGroup() error
-// 	KillProcessGroup() error
-// }
-
 type Shell struct {
 	ctx            context.Context
 	cmd            *exec.Cmd

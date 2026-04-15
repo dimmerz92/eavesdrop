@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-var (
+const (
 	DefaultDelay = 300 * time.Millisecond
 )
 
