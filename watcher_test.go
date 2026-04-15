@@ -8,83 +8,58 @@ import (
 
 func TestWatcherConfig_Validate(t *testing.T) {
 	tests := []struct {
-		name    string
-		config  eavesdrop.WatcherConfig
-		wantErr bool
+		name        string
+		watcherName string
+		config      []eavesdrop.WatcherOption
+		panic       bool
 	}{
 		{
-			name:    "missing name",
-			config:  eavesdrop.WatcherConfig{},
-			wantErr: true,
+			name:        "missing name",
+			watcherName: "   ",
+			panic:       true,
 		},
 		{
-			name:    "missing file types and file names",
-			config:  eavesdrop.WatcherConfig{Name: "watcher1"},
-			wantErr: true,
+			name:        "missing file types and file names",
+			watcherName: "test1",
+			panic:       true,
 		},
 		{
-			name:    "missing tasks and service",
-			config:  eavesdrop.WatcherConfig{Name: "watcher2", FileTypes: []string{".go"}},
-			wantErr: true,
+			name:        "missing tasks and service",
+			watcherName: "test2",
+			config:      []eavesdrop.WatcherOption{eavesdrop.WithWatchedFiletypes(".go")},
+			panic:       true,
 		},
 		{
-			name: "negative max task time",
-			config: eavesdrop.WatcherConfig{
-				Name:        "watcher3",
-				FileTypes:   []string{".go"},
-				Tasks:       []string{"echo hello"},
-				MaxTaskTime: -100,
+			name:        "with tasks",
+			watcherName: "test3",
+			config: []eavesdrop.WatcherOption{
+				eavesdrop.WithWatchedFiletypes(".go"),
+				eavesdrop.WithTasks("echo 'hello'"),
 			},
-			wantErr: true,
 		},
 		{
-			name: "negative service timeout",
-			config: eavesdrop.WatcherConfig{
-				Name:              "watcher4",
-				FileTypes:         []string{".go"},
-				Tasks:             []string{"echo hello"},
-				MaxServiceTimeout: -100,
+			name:        "with service",
+			watcherName: "test4",
+			config: []eavesdrop.WatcherOption{
+				eavesdrop.WithWatchedFiletypes(".go"),
+				eavesdrop.WithService("sleep 1000; echo hello"),
 			},
-			wantErr: true,
-		},
-		{
-			name: "negative debounce delay",
-			config: eavesdrop.WatcherConfig{
-				Name:          "watcher5",
-				FileTypes:     []string{".go"},
-				Tasks:         []string{"echo hello"},
-				DebounceDelay: -100,
-			},
-			wantErr: true,
-		},
-		{
-			name: "valid config with task",
-			config: eavesdrop.WatcherConfig{
-				Name:      "watcher6",
-				FileTypes: []string{".go"},
-				Tasks:     []string{"echo hello"},
-			},
-			wantErr: false,
-		},
-		{
-			name: "valid config with service",
-			config: eavesdrop.WatcherConfig{
-				Name:      "watcher7",
-				FileTypes: []string{".go"},
-				Service:   "echo hello",
-			},
-			wantErr: false,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := test.config.Validate()
-			if test.wantErr && err == nil {
-				t.Fatal("expected error, got nil")
-			} else if !test.wantErr && err != nil {
-				t.Fatalf("expected nil, got %v", err)
-			}
+			defer func() {
+				r := recover()
+				if test.panic && r == nil {
+					t.Fatalf("expected panic")
+				}
+				if !test.panic && r != nil {
+					t.Fatalf("unexpected panic")
+				}
+			}()
+
+			_ = eavesdrop.NewWatcher(t.Context(), test.watcherName, test.config...)
 		})
 	}
 }

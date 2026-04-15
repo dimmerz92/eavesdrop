@@ -30,7 +30,7 @@ type EventEmitter struct {
 
 type EventEmitterOption func(*EventEmitter)
 
-func WithExcluder(excluder *Excluder) EventEmitterOption {
+func WithGlobalExcluder(excluder *Excluder) EventEmitterOption {
 	return func(ee *EventEmitter) { ee.excluder = excluder }
 }
 

@@ -19,7 +19,7 @@ func TestEmitter(t *testing.T) {
 		eavesdrop.WithRegex("_test.go"),
 	)
 
-	emitter := eavesdrop.NewEmitter(tmp, eavesdrop.WithExcluder(excluder))
+	emitter := eavesdrop.NewEmitter(tmp, eavesdrop.WithGlobalExcluder(excluder))
 
 	go func() {
 		emitter.Start(t.Context())
