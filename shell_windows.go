@@ -3,101 +3,62 @@
 package eavesdrop
 
 import (
-	"context"
+	"errors"
 	"fmt"
-	"os"
 	"os/exec"
-	"strings"
+	"strconv"
 	"syscall"
-	"time"
 
-	"github.com/fatih/color"
 	"golang.org/x/sys/windows"
 )
 
-type Shell struct {
-	cmd            *exec.Cmd
-	ctx            context.Context
-	cancel         context.CancelFunc
-	taskTimeout    time.Duration
-	serviceTimeout time.Duration
-}
+const PROCESS_NOT_FOUND = 128
 
-// NewShell returns a os specific shell ready for executing commands.
-// args:
-// - taskTimeout is used to give a max time for a single task to run before it is cancelled.
-// - serviceTimeout is used to give a max wait for a service to gracefully exit.
-func NewShell(taskTimeout, serviceTimeout time.Duration) *Shell {
-	return &Shell{
-		taskTimeout:    taskTimeout,
-		serviceTimeout: serviceTimeout,
-	}
-}
+func DetectShell() string {
+	prefix := "powershell.exe"
 
-// Exec runs the given command and waits for the combined output.
-// args:
-// - command specifies the shell command to be run.
-func (s *Shell) Exec(command string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), s.taskTimeout)
-	defer cancel()
-
-	out, err := exec.CommandContext(ctx, "cmd.exe", "/C", command).CombinedOutput()
-	return strings.TrimSpace(string(out)), err
-}
-
-// Run runs the given command in a separate process group without waiting for it to finish.
-// Kill the process using the Kill() method.
-// args:
-// - command specifies the shell command to be run.
-func (s *Shell) Run(command string) error {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	cmd := exec.CommandContext(ctx, "cmd.exe", "/C", command)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP}
-
-	err := cmd.Start()
+	_, err := exec.LookPath(prefix)
 	if err != nil {
-		cancel()
-		return fmt.Errorf("failed to execute run command: %w", err)
+		return "cmd.exe"
 	}
 
-	s.cmd = cmd
-	s.ctx = ctx
-	s.cancel = cancel
+	return prefix
+}
+
+func ShellFlag(prefix string) string {
+	if prefix == "powershell.exe" {
+		return "-Command"
+	}
+	return "/C"
+}
+
+func (s *Shell) ToProcessGroup() error {
+	if s.cmd == nil {
+		return fmt.Errorf("nil shell")
+	}
+
+	s.cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP}
 
 	return nil
 }
 
-// Kill signals the process for a graceful shutdown.
-func (s *Shell) Kill() error {
-	if s.cmd == nil || s.cmd.Process == nil {
-		return nil
-	}
-	defer s.cancel()
+func (s *Shell) TerminateProcessGroup() error {
+	return windows.GenerateConsoleCtrlEvent(windows.CTRL_BREAK_EVENT, uint32(s.pid))
+}
 
-	done := make(chan error, 1)
-	go func() { done <- s.cmd.Wait() }()
+func (s *Shell) KillProcessGroup() error {
+	pid := strconv.Itoa(s.pid)
+	cmd := exec.Command("taskkill", "/F", "/T", "/PID", pid)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 
-	// ignore lint error, Windows PIDs are always 32-bit
-	_ = windows.GenerateConsoleCtrlEvent(windows.CTRL_BREAK_EVENT, uint32(s.cmd.Process.Pid)) //nolint:gosec
-
-	var err error
-
-	select {
-	case err = <-done:
-		color.Yellow("warning: %v", err)
-		err = nil
-
-	case <-time.After(s.serviceTimeout):
-		_ = s.cmd.Process.Kill()
-		err = <-done
+	err := cmd.Run()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == PROCESS_NOT_FOUND {
+			err = nil
+		}
+		return err
 	}
 
-	s.cmd = nil
-	s.ctx = nil
-	s.cancel = nil
-
-	return err
+	return nil
 }
