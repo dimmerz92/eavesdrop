@@ -28,7 +28,11 @@ eventSource.onmessage = (event) => {
 
 eventSource.onerror = (error) => console.error("eavesdrop sse error:", error);`
 
-type Proxy struct {
+type Proxy interface {
+	RefreshBrowser()
+}
+
+type proxy struct {
 	ctx         context.Context
 	appPort     uint16
 	proxyPort   uint16
@@ -37,10 +41,10 @@ type Proxy struct {
 	subscribers map[chan struct{}]struct{}
 }
 
-type ProxyOption func(*Proxy)
+type ProxyOption func(*proxy)
 
 func WithAppPort(port uint16) ProxyOption {
-	return func(p *Proxy) {
+	return func(p *proxy) {
 		if port > 0 {
 			if port == p.proxyPort {
 				panic("app and proxy port must be different")
@@ -51,7 +55,7 @@ func WithAppPort(port uint16) ProxyOption {
 }
 
 func WithProxyPort(port uint16) ProxyOption {
-	return func(p *Proxy) {
+	return func(p *proxy) {
 		if port > 0 {
 			if port == p.appPort {
 				panic("app and proxy port must be different")
@@ -61,8 +65,9 @@ func WithProxyPort(port uint16) ProxyOption {
 	}
 }
 
-func NewProxy(ctx context.Context, opts ...ProxyOption) *Proxy {
-	proxy := &Proxy{
+// NewProxy returns an instance of the default Proxy implementation.
+func NewProxy(ctx context.Context, opts ...ProxyOption) *proxy {
+	proxy := &proxy{
 		ctx:         ctx,
 		appPort:     DefaultAppPort,
 		proxyPort:   DefaultProxyPort,
@@ -105,7 +110,8 @@ func NewProxy(ctx context.Context, opts ...ProxyOption) *Proxy {
 	return proxy
 }
 
-func (p *Proxy) RefreshBrowser() {
+// RefreshBrowser broadcasts a refresh signal to all connected client browsers.
+func (p *proxy) RefreshBrowser() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -114,7 +120,8 @@ func (p *Proxy) RefreshBrowser() {
 	}
 }
 
-func (p *Proxy) handleClientRequest(w http.ResponseWriter, r *http.Request) {
+// handleClientRequest proxies client requests to the application and returns the response back to the client.
+func (p *proxy) handleClientRequest(w http.ResponseWriter, r *http.Request) {
 	req, _ := retryablehttp.NewRequest(
 		r.Method,
 		fmt.Sprintf("http://127.0.0.1:%d%s", p.appPort, r.URL.RequestURI()),
@@ -173,7 +180,7 @@ func (p *Proxy) handleClientRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleSSE sets up and handles persistent SSE connections.
-func (p *Proxy) handleSSE(w http.ResponseWriter, r *http.Request) {
+func (p *proxy) handleSSE(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -213,7 +220,7 @@ func (p *Proxy) handleSSE(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p *Proxy) injectSSE(resp *http.Response) ([]byte, error) {
+func (p *proxy) injectSSE(resp *http.Response) ([]byte, error) {
 	var buf bytes.Buffer
 	_, err := buf.ReadFrom(resp.Body)
 	if err != nil {

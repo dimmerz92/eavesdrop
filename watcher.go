@@ -23,11 +23,11 @@ type Watcher struct {
 	files          Set[string]
 	tasks          []string
 	service        string
-	refreshDelay   time.Duration
 	triggerRefresh bool
+	refreshDelay   time.Duration
 	debouncer      Debouncer
 	excluder       Excluder
-	proxy          *Proxy
+	proxy          Proxy
 	shell          *Shell
 }
 
@@ -69,7 +69,7 @@ func WithWatcherExcluder(excluder Excluder) WatcherOption {
 	return func(w *Watcher) { w.excluder = excluder }
 }
 
-func WithProxy(proxy *Proxy) WatcherOption {
+func WithProxy(proxy Proxy) WatcherOption {
 	return func(w *Watcher) { w.proxy = proxy }
 }
 
@@ -132,7 +132,13 @@ func (w *Watcher) Watch(events <-chan Event) {
 
 		case event := <-events:
 			if w.watched(event) {
-				w.runJobs()
+				w.debouncer.Do(func() {
+					w.runJobs()
+					if w.triggerRefresh && w.proxy != nil {
+						time.Sleep(w.refreshDelay)
+						w.proxy.RefreshBrowser()
+					}
+				})
 			}
 		}
 	}
