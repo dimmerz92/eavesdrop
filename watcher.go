@@ -25,7 +25,7 @@ type Watcher struct {
 	service        string
 	refreshDelay   time.Duration
 	triggerRefresh bool
-	debouncer      *Debouncer
+	debouncer      Debouncer
 	excluder       *Excluder
 	proxy          *Proxy
 	shell          *Shell
@@ -61,7 +61,7 @@ func WithTriggerRefresh(b bool) WatcherOption {
 	return func(w *Watcher) { w.triggerRefresh = b }
 }
 
-func WithDebouncer(debouncer *Debouncer) WatcherOption {
+func WithDebouncer(debouncer Debouncer) WatcherOption {
 	return func(w *Watcher) { w.debouncer = debouncer }
 }
 

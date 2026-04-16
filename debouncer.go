@@ -9,14 +9,19 @@ const (
 	DefaultDelay = 300 * time.Millisecond
 )
 
-type Debouncer struct {
+type Debouncer interface {
+	Do(f func())
+}
+
+type debouncer struct {
 	delay time.Duration
 	mu    sync.Mutex
 	timer *time.Timer
 }
 
-func NewDebouncer(delay time.Duration) *Debouncer {
-	debouncer := &Debouncer{delay: DefaultDelay}
+// NewDebouncer returns an instance of the default Debouncer implementation.
+func NewDebouncer(delay time.Duration) *debouncer {
+	debouncer := &debouncer{delay: DefaultDelay}
 
 	if delay > 0 {
 		debouncer.delay = delay
@@ -25,7 +30,9 @@ func NewDebouncer(delay time.Duration) *Debouncer {
 	return debouncer
 }
 
-func (d *Debouncer) Do(f func()) {
+// Do runs the given function after the configured delay.
+// Calls to Do while the debounce delay is active resets the timer and the replaces the f with the newest function.
+func (d *debouncer) Do(f func()) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
