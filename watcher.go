@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	DefaultRefreshDelay  = 300 * time.Millisecond
-	DefaultDebounceDelay = 300 * time.Millisecond
+	DefaultRefreshDelay  = 100 * time.Millisecond
+	DefaultDebounceDelay = 100 * time.Millisecond
 )
 
 type Watcher interface {

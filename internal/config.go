@@ -24,7 +24,7 @@ type ExcluderConfig struct {
 
 type WatcherConfig struct {
 	Name           string         `json:"name" toml:"name" yaml:"name"`
-	Filetypes      []string       `json:"filetypes" toml:"filtetypes" yaml:"filetypes"`
+	Filetypes      []string       `json:"filetypes" toml:"filetypes" yaml:"filetypes"`
 	Dirs           []string       `json:"dirs" toml:"dirs" yaml:"dirs"`
 	Files          []string       `json:"files" toml:"files" yaml:"files"`
 	Exclude        ExcluderConfig `json:"exclude" toml:"exclude" yaml:"exclude"`
@@ -43,7 +43,7 @@ type ShellConfig struct {
 }
 
 type ProxyConfig struct {
-	Enabled   bool   `json:"enabled"`
+	Enabled   bool   `json:"enabled" toml:"enabled" yaml:"enabled"`
 	AppPort   uint16 `json:"app_port" toml:"app_port" yaml:"app_port"`
 	ProxyPort uint16 `json:"proxy_port" toml:"proxy_port" yaml:"proxy_port"`
 }
