@@ -1,0 +1,80 @@
+root_dir: .
+tmp: true
+cleanup_tmp: true
+global_exclude:
+  dirs:
+    - data
+    - dist
+    - node_modules
+    - tmp
+  files: []
+  regex:
+    - '^\.?(\/?|\\?)(?:\w+(\/|\\))*(\.\w+)$'
+    - ^.+\.sqlite$
+    - ^.+\.wal$
+    - ^.+\.shm$
+watchers:
+  - name: css watcher
+    filetypes:
+      - .css
+    dirs: []
+    files: []
+    exclude:
+      dirs: []
+      files:
+        - style.css
+      regex: []
+    shell:
+      tasks:
+        - tailwindcss -i input.css -o style.css
+      task_timeout: 2000
+      service: ''
+      service_shutdown_timeout: 5000
+      debounce_delay: 100
+      run_on_start: false
+    trigger_refresh: true
+    refresh_delay: 100
+  - name: templ watcher
+    filetypes:
+      - .templ
+    dirs: []
+    files: []
+    exclude:
+      dirs: []
+      files: []
+      regex: []
+    shell:
+      tasks:
+        - templ generate
+        - tailwindcss -i input.css -o style.css
+      task_timeout: 2000
+      service: ''
+      service_shutdown_timeout: 5000
+      debounce_delay: 100
+      run_on_start: true
+    trigger_refresh: false
+    refresh_delay: 100
+  - name: go watcher
+    filetypes:
+      - .go
+    dirs: []
+    files: []
+    exclude:
+      dirs: []
+      files: []
+      regex:
+        - _test.go
+    shell:
+      tasks:
+        - go build -o tmp/main cmd/main.go
+      task_timeout: 2000
+      service: tmp/main
+      service_shutdown_timeout: 5000
+      debounce_delay: 100
+      run_on_start: true
+    trigger_refresh: true
+    refresh_delay: 100
+proxy:
+  enabled: true
+  app_port: 8000
+  proxy_port: 8001

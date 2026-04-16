@@ -1,89 +1,146 @@
 package eavesdrop_test
 
 import (
+	"bytes"
+	"os"
 	"runtime"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/dimmerz92/eavesdrop"
 )
 
-var OS = runtime.GOOS
+func TestShell(t *testing.T) {
+	newShell := func() (eavesdrop.Shell, *os.File, *os.File, func()) {
+		stdout := os.Stdout
+		r, w, _ := os.Pipe()
+		os.Stdout = w
 
-func TestShell_Exec_Success(t *testing.T) {
-	shell := eavesdrop.NewShell(1*time.Second, 1*time.Second)
+		shell := eavesdrop.NewShell(t.Context(),
+			eavesdrop.WithTaskTimeout(50*time.Millisecond),
+			eavesdrop.WithServiceTimeout(50*time.Millisecond),
+		)
 
-	out, err := shell.Exec(`echo "hello world"`)
-	if err != nil {
-		t.Fatalf("Exec failed: %v", err)
+		return shell, r, w, func() { os.Stdout = stdout }
 	}
 
-	if OS == "windows" {
-		if strings.TrimSpace(out) != "\\\"hello world\\\"" {
-			t.Errorf("Expected \\\"hello world\\\", got: %s", out)
+	t.Run("test ExecAndReturn", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			task     string
+			expected string
+			err      bool
+		}{
+			{name: "empty task", task: " ", err: true},
+			{name: "echo 'hello' to stdout", task: "echo -n 'hello'", expected: "hello"},
+			{name: "echo 'hello' to stderr", task: "echo -n 'hello' >&2", expected: "hello"},
+			{name: "task timeout", task: "sleep 100; echo 'hello'", err: true},
 		}
-	} else if strings.TrimSpace(out) != "hello world" {
-		t.Errorf("Expected 'hello world', got: %s", out)
-	}
-}
 
-func TestShell_Exec_Timeout(t *testing.T) {
-	shell := eavesdrop.NewShell(100*time.Millisecond, 1*time.Second)
+		for _, test := range tests {
+			t.Run(test.name, func(t *testing.T) {
+				shell, r, w, restore := newShell()
+				defer restore()
 
-	command := "sleep 1"
-	if OS == "windows" {
-		command = "timeout /T 1"
-	}
+				err := shell.ExecAndWait(test.task)
+				w.Close()
+				if test.err && err == nil {
+					t.Error("expected error")
+				} else if !test.err && err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
 
-	_, err := shell.Exec(command)
-	if err == nil {
-		t.Fatal("Expected timeout error, got nil")
-	}
-}
+				if !test.err {
+					var buf bytes.Buffer
+					buf.ReadFrom(r)
 
-func TestShell_Run_And_Kill_Graceful(t *testing.T) {
-	if OS == "windows" {
-		t.Skip("I have no idea how to test this on windows, lmao")
-	}
+					if stdout := buf.String(); stdout != test.expected {
+						t.Errorf("expected %s, got %s", test.expected, stdout)
+					}
+				}
+			})
+		}
+	})
 
-	shell := eavesdrop.NewShell(1*time.Second, 2*time.Second)
+	t.Run("ExecAndReturn terminations", func(t *testing.T) {
+		t.Run("TerminateProcessGroup", func(t *testing.T) {
+			service := `trap "exit 0" TERM; while true; do sleep 100; done`
+			if runtime.GOOS == "windows" {
+				service = ""
+			}
 
-	err := shell.Run(`trap "exit 0" TERM; while true; do sleep 1; done`)
-	if err != nil {
-		t.Fatalf("Run failed: %v", err)
-	}
+			shell := eavesdrop.NewShell(t.Context(),
+				eavesdrop.WithTaskTimeout(50*time.Second),
+				eavesdrop.WithServiceTimeout(50*time.Millisecond),
+			)
 
-	time.Sleep(300 * time.Millisecond)
+			err := shell.ExecAndReturn(service)
+			if err != nil {
+				t.Fatalf("failed to run service: %v", err)
+			}
 
-	err = shell.Kill()
-	if err != nil {
-		t.Fatalf("Expected graceful shutdown, got error: %v", err)
-	}
-}
+			time.Sleep(10 * time.Millisecond)
 
-func TestShell_Run_And_Kill_Force(t *testing.T) {
-	if OS == "windows" {
-		t.Skip("I have no idea how to test this on windows, lmao")
-	}
+			err = shell.TerminateProcessGroup()
+			if err != nil {
+				t.Fatalf("failed graceful shutdown: %v", err)
+			}
+		})
 
-	shell := eavesdrop.NewShell(1*time.Second, 300*time.Millisecond)
+		t.Run("KillProcessGroup", func(t *testing.T) {
+			service := `trap "" TERM; while true; do sleep 100; done`
+			if runtime.GOOS == "windows" {
+				service = ""
+			}
 
-	err := shell.Run(`trap "" TERM; while true; do sleep 1; done`)
-	if err != nil {
-		t.Fatalf("Run failed: %v", err)
-	}
+			shell := eavesdrop.NewShell(t.Context(),
+				eavesdrop.WithTaskTimeout(50*time.Second),
+				eavesdrop.WithServiceTimeout(50*time.Millisecond),
+			)
 
-	time.Sleep(200 * time.Millisecond)
+			err := shell.ExecAndReturn(service)
+			if err != nil {
+				t.Fatalf("failed to run service: %v", err)
+			}
 
-	start := time.Now()
-	err = shell.Kill()
-	if err == nil {
-		t.Fatalf("failed to kill shell: %v", err)
-	}
-	duration := time.Since(start)
+			time.Sleep(10 * time.Millisecond)
 
-	if duration < 300*time.Millisecond {
-		t.Errorf("Expected kill to wait ~300ms, happened too fast: %v", duration)
-	}
+			err = shell.KillProcessGroup()
+			if err != nil {
+				t.Fatalf("failed hard shutdown: %v", err)
+			}
+		})
+
+		t.Run("StopService", func(t *testing.T) {
+			service := `trap "" TERM; while true; do sleep 1; done`
+			if runtime.GOOS == "windows" {
+				t.Skip("I have no idea how to test this on windows, lmao")
+			}
+
+			shell := eavesdrop.NewShell(t.Context(),
+				eavesdrop.WithTaskTimeout(50*time.Millisecond),
+				eavesdrop.WithServiceTimeout(50*time.Millisecond),
+			)
+
+			err := shell.ExecAndReturn(service)
+			if err != nil {
+				t.Fatalf("failed to run service: %v", err)
+			}
+
+			time.Sleep(10 * time.Millisecond)
+
+			start := time.Now()
+
+			err = shell.Stop()
+			if err != nil {
+				t.Fatalf("failed to stop service: %v", err)
+			}
+
+			duration := time.Since(start)
+
+			if duration <= 50*time.Millisecond {
+				t.Errorf("expected termination to wait ~50ms, happened too fast: %v", duration)
+			}
+		})
+	})
 }

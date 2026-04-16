@@ -1,103 +1,154 @@
-//go:build !windows
-
 package eavesdrop
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
-	"syscall"
 	"time"
 )
 
-type Shell struct {
-	cmd            *exec.Cmd
+const (
+	DefaultTaskRunTimeout         = 2 * time.Second
+	DefaultServiceShutdownTimeout = 5 * time.Second
+)
+
+type Shell interface {
+	ExecAndWait(task string) error
+	ExecAndReturn(service string) error
+	TerminateProcessGroup() error
+	KillProcessGroup() error
+	Stop() error
+}
+
+type shell struct {
 	ctx            context.Context
-	cancel         context.CancelFunc
+	cmd            *exec.Cmd
+	pid            int
+	prefix         string
+	flag           string
 	taskTimeout    time.Duration
 	serviceTimeout time.Duration
 }
 
-// NewShell returns a os specific shell ready for executing commands.
-// args:
-// - taskTimeout is used to give a max time for a single task to run before it is cancelled.
-// - serviceTimeout is used to give a max wait for a service to gracefully exit.
-func NewShell(taskTimeout, serviceTimeout time.Duration) *Shell {
-	return &Shell{
-		taskTimeout:    taskTimeout,
-		serviceTimeout: serviceTimeout,
+type ShellOption func(*shell)
+
+func WithTaskTimeout(d time.Duration) ShellOption {
+	return func(s *shell) {
+		if d > 0 {
+			s.taskTimeout = d
+		}
 	}
 }
 
-// Exec runs the given command and waits for the combined output.
-// args:
-// - command specifies the shell command to be run.
-func (s *Shell) Exec(command string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), s.taskTimeout)
+func WithServiceTimeout(d time.Duration) ShellOption {
+	return func(s *shell) {
+		if d > 0 {
+			s.serviceTimeout = d
+		}
+	}
+}
+
+func NewShell(ctx context.Context, opts ...ShellOption) *shell {
+	prefix := DetectShell()
+	shell := &shell{
+		ctx:            ctx,
+		prefix:         prefix,
+		flag:           ShellFlag(prefix),
+		taskTimeout:    DefaultTaskRunTimeout,
+		serviceTimeout: DefaultServiceShutdownTimeout,
+	}
+
+	for _, opt := range opts {
+		opt(shell)
+	}
+
+	return shell
+}
+
+func (s *shell) ExecAndWait(task string) error {
+	if strings.TrimSpace(task) == "" {
+		return fmt.Errorf("cannot run blank task")
+	}
+
+	ctx, cancel := context.WithTimeout(s.ctx, s.taskTimeout)
 	defer cancel()
 
-	out, err := exec.CommandContext(ctx, "sh", "-c", command).CombinedOutput()
-	return strings.TrimSpace(string(out)), err
-}
+	s.cmd = exec.CommandContext(ctx, s.prefix, s.flag, task)
 
-// Run runs the given command in a separate process group without waiting for it to finish.
-// Kill the process using the Kill() method.
-// args:
-// - command specifies the shell command to be run.
-func (s *Shell) Run(command string) error {
-	ctx, cancel := context.WithCancel(context.Background())
+	s.ToProcessGroup()
+	s.cmd.Stdout = os.Stdout
+	s.cmd.Stderr = os.Stdout
 
-	cmd := exec.CommandContext(ctx, "sh", "-c", command)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- s.cmd.Start()
+	}()
 
-	err := cmd.Start()
-	if err != nil {
-		cancel()
-		return fmt.Errorf("failed to execute run command: %w", err)
+	select {
+	case <-ctx.Done():
+		return s.KillProcessGroup()
+	case err := <-errCh:
+		if err != nil {
+			return err
+		}
 	}
 
-	s.cmd = cmd
-	s.ctx = ctx
-	s.cancel = cancel
+	s.pid = s.cmd.Process.Pid
+
+	return s.cmd.Wait()
+}
+
+func (s *shell) ExecAndReturn(service string) error {
+	if strings.TrimSpace(service) == "" {
+		return fmt.Errorf("cannot run blank task")
+	}
+
+	s.cmd = exec.CommandContext(s.ctx, s.prefix, s.flag, service)
+
+	s.ToProcessGroup()
+	s.cmd.Stdout = os.Stdout
+	s.cmd.Stderr = os.Stdout
+
+	err := s.cmd.Start()
+	if err != nil {
+		return err
+	}
+
+	s.pid = s.cmd.Process.Pid
 
 	return nil
 }
 
-// Kill signals the process for a graceful shutdown.
-func (s *Shell) Kill() error {
+func (s *shell) Stop() error {
 	if s.cmd == nil || s.cmd.Process == nil {
 		return nil
 	}
-	defer s.cancel()
 
 	done := make(chan error, 1)
 	go func() { done <- s.cmd.Wait() }()
 
-	pgid, err := syscall.Getpgid(s.cmd.Process.Pid)
-	if err == nil {
-		_ = syscall.Kill(-pgid, syscall.SIGTERM)
-	} else {
-		_ = s.cmd.Process.Signal(syscall.SIGTERM)
-	}
+	s.TerminateProcessGroup()
 
 	select {
-	case err = <-done:
-		if err != nil && strings.Contains(err.Error(), "terminated") {
-			err = nil
+	case err := <-done:
+		if err != nil {
+			var exitErr *exec.ExitError
+			if !errors.As(err, &exitErr) {
+				return err
+			}
 		}
 
 	case <-time.After(s.serviceTimeout):
-		_ = s.cmd.Process.Kill()
-		err = <-done
+		err := s.KillProcessGroup()
+		if err != nil {
+			return err
+		}
 	}
 
 	s.cmd = nil
-	s.ctx = nil
-	s.cancel = nil
 
-	return err
+	return nil
 }

@@ -1,28 +1,51 @@
 package eavesdrop
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
-type Debouncer struct {
-	Delay time.Duration
-	timer *time.Timer
-	used  bool
+const (
+	DefaultDelay = 300 * time.Millisecond
+)
+
+type Debouncer interface {
+	Do(f func())
 }
 
-// Run executes the function after the delay has passed.
-// Repeat calls to Run will reset the timer.
-// Run does not check if the given function is always the same.
-// args:
-// - delay is used to define the time before the function is run.
-// - f is the function to be run after the delay time elapses.
-func (d *Debouncer) Run(f func()) {
-	if d.used {
-		d.timer.Stop()
-	} else {
-		d.used = true
+type debouncer struct {
+	delay time.Duration
+	mu    sync.Mutex
+	timer *time.Timer
+}
+
+// NewDebouncer returns an instance of the default Debouncer implementation.
+func NewDebouncer(delay time.Duration) *debouncer {
+	debouncer := &debouncer{delay: DefaultDelay}
+
+	if delay > 0 {
+		debouncer.delay = delay
 	}
 
-	d.timer = time.AfterFunc(d.Delay, func() {
-		d.used = false
-		f()
-	})
+	return debouncer
+}
+
+// Do runs the given function after the configured delay.
+// Calls to Do while the debounce delay is active resets the timer and the replaces the f with the newest function.
+func (d *debouncer) Do(f func()) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.timer == nil {
+		d.timer = time.AfterFunc(d.delay, func() {
+			d.mu.Lock()
+			defer d.mu.Unlock()
+
+			f()
+			d.timer = nil
+		})
+		return
+	}
+
+	d.timer.Reset(d.delay)
 }

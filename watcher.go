@@ -1,200 +1,194 @@
 package eavesdrop
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/fatih/color"
 )
 
-type WatcherConfig struct {
-	Name              string         `json:"name" toml:"name" yaml:"name"`
-	FileTypes         []string       `json:"file_types" toml:"file_types" yaml:"file_types"`
-	FileNames         []string       `json:"file_names" toml:"file_names" yaml:"file_names"`
-	Exclude           ExcluderConfig `json:"exclude" toml:"exclude" yaml:"exclude"`
-	Tasks             []string       `json:"tasks" toml:"tasks" yaml:"tasks"`
-	Service           string         `json:"service" toml:"service" yaml:"service"`
-	RunOnStart        bool           `json:"run_on_start" toml:"run_on_start" yaml:"run_on_start"`
-	MaxTaskTime       int64          `json:"max_task_time" toml:"max_task_time" yaml:"max_task_time"`
-	MaxServiceTimeout int64          `json:"max_service_timeout" toml:"max_service_timeout" yaml:"max_service_timeout"`
-	DebounceDelay     int64          `json:"debounce_delay" toml:"debounce_delay" yaml:"debounce_delay"`
-	RefreshDelay      int64          `json:"refresh_delay" toml:"refresh_delay" yaml:"refresh_delay"`
-	TriggerRefresh    bool           `json:"trigger_refresh" toml:"trigger_refresh" yaml:"trigger_refresh"`
+const (
+	DefaultRefreshDelay  = 100 * time.Millisecond
+	DefaultDebounceDelay = 100 * time.Millisecond
+)
+
+type Watcher interface {
+	Watch(events <-chan Event)
 }
 
-// Validate checks to make sure the WatcherConfig fields are valid.
-func (w *WatcherConfig) Validate() error {
-	if w.Name == "" {
-		return fmt.Errorf("watcher requires a name")
-	}
-
-	if len(w.FileTypes)+len(w.FileNames) == 0 {
-		return fmt.Errorf("%s: at least one file type or file name is required", w.Name)
-	}
-
-	if len(w.Tasks) == 0 && w.Service == "" {
-		return fmt.Errorf("%s: at least one task or service is required", w.Name)
-	}
-
-	if w.MaxTaskTime < 0 {
-		return fmt.Errorf("%s: max task time cannot be negative", w.Name)
-	}
-
-	if w.MaxServiceTimeout < 0 {
-		return fmt.Errorf("%s: service kill timeout cannot be negative", w.Name)
-	}
-
-	if w.DebounceDelay < 0 {
-		return fmt.Errorf("%s: debounce delay cannot be negative", w.Name)
-	}
-
-	if w.RefreshDelay < 0 {
-		return fmt.Errorf("%s: refresh delay cannot be negative", w.Name)
-	}
-
-	return nil
+type watcher struct {
+	ctx            context.Context
+	name           string
+	filetypes      Set[string]
+	dirs           Set[string]
+	files          Set[string]
+	tasks          []string
+	service        string
+	triggerRefresh bool
+	refreshDelay   time.Duration
+	debouncer      Debouncer
+	excluder       Excluder
+	proxy          Proxy
+	shell          Shell
+	mu             *sync.Mutex
 }
 
-// ToWatcher returns an initialised and ready watcher.
-// Runs the tasks and service if the RunOnStart flag is true.
-func (w *WatcherConfig) ToWatcher(root string, proxy *Proxy) (*Watcher, error) {
-	excluder, err := w.Exclude.ToExcluder(root)
-	if err != nil {
-		return nil, err
-	}
+type WatcherOption func(*watcher)
 
-	watcher := &Watcher{
-		Name:           w.Name,
-		Exts:           ToSet(w.FileTypes),
-		Files:          ToSet(w.FileNames),
-		Excluder:       excluder,
-		Tasks:          w.Tasks,
-		Service:        w.Service,
-		Shell:          NewShell(time.Millisecond*time.Duration(w.MaxTaskTime), time.Millisecond*time.Duration(w.MaxServiceTimeout)),
-		Debouncer:      &Debouncer{Delay: time.Millisecond * time.Duration(w.DebounceDelay)},
-		Proxy:          proxy,
-		RefreshDelay:   time.Millisecond * time.Duration(w.RefreshDelay),
-		TriggerRefresh: w.TriggerRefresh,
-	}
-
-	if w.RunOnStart {
-		watcher.Debouncer.Run(func() {
-			err := watcher.RunTasks()
-			if err != nil {
-				color.Red("%s error: %v", w.Name, err)
-				return
-			}
-
-			err = watcher.RunService()
-			if err != nil {
-				color.Red("%s error: %v", w.Name, err)
-				return
-			}
-
-			if watcher.TriggerRefresh {
-				time.Sleep(watcher.RefreshDelay)
-				watcher.Proxy.Refresh()
-			}
-		})
-	}
-
-	return watcher, nil
+func WithWatchedFiletypes(filetypes ...string) WatcherOption {
+	return func(w *watcher) { w.filetypes = ToSet(filetypes...) }
 }
 
-type Watcher struct {
-	Name           string
-	Exts           map[string]struct{}
-	Files          map[string]struct{}
-	Excluder       *Excluder
-	Tasks          []string
-	Service        string
-	Shell          *Shell
-	Debouncer      *Debouncer
-	Proxy          *Proxy
-	RefreshDelay   time.Duration
-	TriggerRefresh bool
+func WithWatchedDirs(dirs ...string) WatcherOption {
+	return func(w *watcher) { w.dirs = ToSet(dirs...) }
 }
 
-// Notify passes the file change event path to watcher to handle.
-func (w *Watcher) Notify(path string) {
-	_, watchedExt := w.Exts[filepath.Ext(path)]
-	_, watchedFiles := w.Files[path]
-	if !watchedExt && !watchedFiles {
-		return
+func WithWatchedFiles(files ...string) WatcherOption {
+	return func(w *watcher) { w.files = ToSet(files...) }
+}
+
+func WithTasks(tasks ...string) WatcherOption {
+	return func(w *watcher) { w.tasks = tasks }
+}
+
+func WithService(service string) WatcherOption {
+	return func(w *watcher) { w.service = service }
+}
+
+func WithRefreshDelay(d time.Duration) WatcherOption {
+	return func(w *watcher) { w.refreshDelay = d }
+}
+
+func WithTriggerRefresh(b bool) WatcherOption {
+	return func(w *watcher) { w.triggerRefresh = b }
+}
+
+func WithDebouncer(debouncer Debouncer) WatcherOption {
+	return func(w *watcher) { w.debouncer = debouncer }
+}
+
+func WithWatcherExcluder(excluder Excluder) WatcherOption {
+	return func(w *watcher) { w.excluder = excluder }
+}
+
+func WithProxy(proxy Proxy) WatcherOption {
+	return func(w *watcher) { w.proxy = proxy }
+}
+
+func WithShell(shell Shell) WatcherOption {
+	return func(w *watcher) { w.shell = shell }
+}
+
+func NewWatcher(ctx context.Context, name string, mu *sync.Mutex, opts ...WatcherOption) *watcher {
+	if name = strings.TrimSpace(name); name == "" {
+		panic("watcher requires a name")
 	}
 
-	if w.Excluder.ShouldIgnore(path, false) {
-		return
+	watcher := &watcher{
+		ctx:          ctx,
+		name:         name,
+		refreshDelay: DefaultRefreshDelay,
+		mu:           mu,
 	}
 
-	w.Debouncer.Run(func() {
-		color.Green("%s changed", path)
+	for _, opt := range opts {
+		opt(watcher)
+	}
 
-		err := w.Shell.Kill()
-		if err != nil {
-			color.Red("%s kill error: %v", w.Name, err)
+	if watcher.filetypes == nil {
+		watcher.filetypes = Set[string]{}
+	}
+
+	if watcher.dirs == nil {
+		watcher.dirs = Set[string]{}
+	}
+
+	if watcher.files == nil {
+		watcher.files = Set[string]{}
+	}
+
+	if len(watcher.filetypes)+len(watcher.dirs)+len(watcher.files) == 0 {
+		panic(fmt.Sprintf("watcher %s has nothing to watch", watcher.name))
+	}
+
+	if len(watcher.tasks) == 0 && watcher.service == "" {
+		panic(fmt.Sprintf("watcher %s has no tasks or servies to run", watcher.name))
+	}
+
+	if watcher.debouncer == nil {
+		watcher.debouncer = NewDebouncer(DefaultDebounceDelay)
+	}
+
+	if watcher.shell == nil {
+		watcher.shell = NewShell(ctx)
+	}
+
+	return watcher
+}
+
+func (w *watcher) Watch(events <-chan Event) {
+	w.runJobs()
+	for {
+		select {
+		case <-w.ctx.Done():
 			return
-		}
 
-		err = w.RunTasks()
-		if err != nil {
-			color.Red("%s task error: %v", w.Name, err)
-			return
-		}
-
-		err = w.RunService()
-		if err != nil {
-			color.Red("%s service error: %v", w.Name, err)
-			return
-		}
-
-		if w.Proxy != nil && w.TriggerRefresh {
-			time.Sleep(w.RefreshDelay)
-			w.Proxy.Refresh()
-		}
-	})
-}
-
-// RunTasks loops through the task list if any and executes them.
-func (w *Watcher) RunTasks() error {
-	if len(w.Tasks) > 0 {
-		color.Magenta("%s: running tasks", w.Name)
-
-		for _, task := range w.Tasks {
-			output, err := w.Shell.Exec(task)
-			if err != nil {
-				return err
-			}
-
-			if output != "" {
-				println(color.CyanString("%s:", w.Name), output)
+		case event := <-events:
+			if w.watched(event) {
+				color.Green("%s changed", event.file.Name())
+				w.debouncer.Do(func() {
+					w.runJobs()
+					if w.triggerRefresh && w.proxy != nil {
+						time.Sleep(w.refreshDelay)
+						w.proxy.RefreshBrowser()
+					}
+				})
 			}
 		}
 	}
-
-	return nil
 }
 
-// RunService runs the long/infinite running service if one exists in a detached process without waiting.
-func (w *Watcher) RunService() error {
-	if w.Service != "" {
-		color.Blue("%s: running service", w.Name)
+func (w *watcher) watched(event Event) bool {
+	if _, hasExt := w.filetypes[filepath.Ext(event.file.Name())]; hasExt {
+		return true
+	}
 
-		err := w.Shell.Run(w.Service)
-		if err != nil {
-			return err
+	if _, watchedFile := w.files[event.file.Name()]; watchedFile {
+		return true
+	}
+
+	for dir := range w.dirs {
+		if IsRelative(dir, event.file.Name()) {
+			return true
 		}
 	}
 
-	return nil
+	return false
 }
 
-// Close stops the debounce timer and kills the long running service if it exists.
-func (w *Watcher) Close() error {
-	if w.Debouncer.timer != nil {
-		w.Debouncer.timer.Stop()
+func (w *watcher) runJobs() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if err := w.shell.KillProcessGroup(); err != nil {
+		color.Red("%s: failed to kill previous service: %v", w.name, err)
 	}
 
-	return w.Shell.Kill()
+	for _, task := range w.tasks {
+		fmt.Printf("%s: running task: %s\n", color.CyanString(w.name), task)
+		if err := w.shell.ExecAndWait(task); err != nil {
+			color.Red("%s: failed to run task: %v", w.name, err)
+		}
+	}
+
+	if w.service != "" {
+		fmt.Printf("%s: running service: %s\n", color.BlueString(w.name), w.service)
+		if err := w.shell.ExecAndReturn(w.service); err != nil {
+			color.Red("%s: failed to run service: %v", w.name, err)
+		}
+	}
 }
