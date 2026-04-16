@@ -15,7 +15,11 @@ const (
 	DefaultDebounceDelay = 300 * time.Millisecond
 )
 
-type Watcher struct {
+type Watcher interface {
+	Watch(events <-chan Event)
+}
+
+type watcher struct {
 	ctx            context.Context
 	name           string
 	filetypes      Set[string]
@@ -31,58 +35,58 @@ type Watcher struct {
 	shell          Shell
 }
 
-type WatcherOption func(*Watcher)
+type WatcherOption func(*watcher)
 
 func WithWatchedFiletypes(filetypes ...string) WatcherOption {
-	return func(w *Watcher) { w.filetypes = ToSet(filetypes...) }
+	return func(w *watcher) { w.filetypes = ToSet(filetypes...) }
 }
 
 func WithWatcherDirs(dirs ...string) WatcherOption {
-	return func(w *Watcher) { w.dirs = ToSet(dirs...) }
+	return func(w *watcher) { w.dirs = ToSet(dirs...) }
 }
 
 func WithWatchedFiles(files ...string) WatcherOption {
-	return func(w *Watcher) { w.files = ToSet(files...) }
+	return func(w *watcher) { w.files = ToSet(files...) }
 }
 
 func WithTasks(tasks ...string) WatcherOption {
-	return func(w *Watcher) { w.tasks = tasks }
+	return func(w *watcher) { w.tasks = tasks }
 }
 
 func WithService(service string) WatcherOption {
-	return func(w *Watcher) { w.service = service }
+	return func(w *watcher) { w.service = service }
 }
 
 func WithRefreshDelay(d time.Duration) WatcherOption {
-	return func(w *Watcher) { w.refreshDelay = d }
+	return func(w *watcher) { w.refreshDelay = d }
 }
 
 func WithTriggerRefresh(b bool) WatcherOption {
-	return func(w *Watcher) { w.triggerRefresh = b }
+	return func(w *watcher) { w.triggerRefresh = b }
 }
 
 func WithDebouncer(debouncer Debouncer) WatcherOption {
-	return func(w *Watcher) { w.debouncer = debouncer }
+	return func(w *watcher) { w.debouncer = debouncer }
 }
 
 func WithWatcherExcluder(excluder Excluder) WatcherOption {
-	return func(w *Watcher) { w.excluder = excluder }
+	return func(w *watcher) { w.excluder = excluder }
 }
 
 func WithProxy(proxy Proxy) WatcherOption {
-	return func(w *Watcher) { w.proxy = proxy }
+	return func(w *watcher) { w.proxy = proxy }
 }
 
 func WithShell(shell Shell) WatcherOption {
-	return func(w *Watcher) { w.shell = shell }
+	return func(w *watcher) { w.shell = shell }
 }
 
-func NewWatcher(ctx context.Context, name string, opts ...WatcherOption) *Watcher {
+func NewWatcher(ctx context.Context, name string, opts ...WatcherOption) *watcher {
 	if name = strings.TrimSpace(name); name == "" {
 		panic("watcher requires a name")
 	}
 
-	watcher := &Watcher{
+	watcher := &watcher{
 		ctx:          ctx,
 		name:         name,
 		refreshDelay: DefaultRefreshDelay,
@@ -123,7 +127,7 @@ func NewWatcher(ctx context.Context, name string, opts ...WatcherOption) *Watche
 	return watcher
 }
 
-func (w *Watcher) Watch(events <-chan Event) {
+func (w *watcher) Watch(events <-chan Event) {
 	w.runJobs()
 	for {
 		select {
@@ -144,7 +148,7 @@ func (w *Watcher) Watch(events <-chan Event) {
 	}
 }
 
-func (w *Watcher) watched(event Event) bool {
+func (w *watcher) watched(event Event) bool {
 	if _, hasExt := w.filetypes[filepath.Ext(event.file.Name())]; hasExt {
 		return true
 	}
@@ -162,7 +166,7 @@ func (w *Watcher) watched(event Event) bool {
 	return false
 }
 
-func (w *Watcher) runJobs() {
+func (w *watcher) runJobs() {
 	if err := w.shell.KillProcessGroup(); err != nil {
 		color.Red("%s: failed to kill previous service: %v", w.name, err)
 	}
