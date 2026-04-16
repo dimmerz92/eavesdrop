@@ -5,32 +5,37 @@ import (
 	"regexp"
 )
 
-type Excluder struct {
+type Excluder interface {
+	ShouldIgnore(file fs.FileInfo) bool
+}
+
+type excluder struct {
 	dirs  Set[string]
 	files Set[string]
 	regex []*regexp.Regexp
 }
 
-type ExcluderOption func(*Excluder)
+type ExcluderOption func(*excluder)
 
 func WithDirs(dirs ...string) ExcluderOption {
-	return func(e *Excluder) { e.dirs = ToSet(dirs...) }
+	return func(e *excluder) { e.dirs = ToSet(dirs...) }
 }
 
 func WithFiles(files ...string) ExcluderOption {
-	return func(e *Excluder) { e.files = ToSet(files...) }
+	return func(e *excluder) { e.files = ToSet(files...) }
 }
 
 func WithRegex(regex ...string) ExcluderOption {
-	return func(e *Excluder) {
+	return func(e *excluder) {
 		for _, pattern := range regex {
 			e.regex = append(e.regex, regexp.MustCompile(pattern))
 		}
 	}
 }
 
-func NewExcluder(opts ...ExcluderOption) *Excluder {
-	excluder := &Excluder{}
+// NewExcluder returns a new instance of the default Excluder implementation.
+func NewExcluder(opts ...ExcluderOption) *excluder {
+	excluder := &excluder{}
 
 	for _, opt := range opts {
 		opt(excluder)
@@ -47,7 +52,8 @@ func NewExcluder(opts ...ExcluderOption) *Excluder {
 	return excluder
 }
 
-func (e *Excluder) ShouldIgnore(file fs.FileInfo) bool {
+// ShouldIgnore checks the given file info agains the exclude rules and returns true if it should be ignored.
+func (e *excluder) ShouldIgnore(file fs.FileInfo) bool {
 	switch file.IsDir() {
 	case true:
 		if _, ok := e.dirs[file.Name()]; ok {

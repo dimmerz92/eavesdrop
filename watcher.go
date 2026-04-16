@@ -26,7 +26,7 @@ type Watcher struct {
 	refreshDelay   time.Duration
 	triggerRefresh bool
 	debouncer      Debouncer
-	excluder       *Excluder
+	excluder       Excluder
 	proxy          *Proxy
 	shell          *Shell
 }
@@ -65,7 +65,7 @@ func WithDebouncer(debouncer Debouncer) WatcherOption {
 	return func(w *Watcher) { w.debouncer = debouncer }
 }
 
-func WithWatcherExcluder(excluder *Excluder) WatcherOption {
+func WithWatcherExcluder(excluder Excluder) WatcherOption {
 	return func(w *Watcher) { w.excluder = excluder }
 }
 

@@ -23,14 +23,14 @@ type EventEmitter struct {
 	rootdir  string
 	subs     map[chan Event]struct{}
 	cache    map[string]fs.FileInfo
-	excluder *Excluder
+	excluder Excluder
 	watcher  *fsnotify.Watcher
 	mu       sync.RWMutex
 }
 
 type EventEmitterOption func(*EventEmitter)
 
-func WithGlobalExcluder(excluder *Excluder) EventEmitterOption {
+func WithGlobalExcluder(excluder Excluder) EventEmitterOption {
 	return func(ee *EventEmitter) { ee.excluder = excluder }
 }
 
