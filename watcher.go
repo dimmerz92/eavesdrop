@@ -139,6 +139,7 @@ func (w *watcher) Watch(events <-chan Event) {
 
 		case event := <-events:
 			if w.watched(event) {
+				color.Green("%s changed", event.file.Name())
 				w.debouncer.Do(func() {
 					w.runJobs()
 					if w.triggerRefresh && w.proxy != nil {
