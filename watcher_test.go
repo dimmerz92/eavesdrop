@@ -1,6 +1,7 @@
 package eavesdrop_test
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/dimmerz92/eavesdrop"
@@ -48,6 +49,7 @@ func TestWatcherConfig_Validate(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		var mu sync.Mutex
 		t.Run(test.name, func(t *testing.T) {
 			defer func() {
 				r := recover()
@@ -59,7 +61,7 @@ func TestWatcherConfig_Validate(t *testing.T) {
 				}
 			}()
 
-			_ = eavesdrop.NewWatcher(t.Context(), test.watcherName, test.config...)
+			_ = eavesdrop.NewWatcher(t.Context(), test.watcherName, &mu, test.config...)
 		})
 	}
 }

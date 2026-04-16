@@ -77,6 +77,7 @@ func NewProxy(ctx context.Context, opts ...ProxyOption) *proxy {
 	proxy.client.HTTPClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		return http.ErrUseLastResponse
 	}
+	proxy.client.Logger = nil // TODO: might support custom logger another time
 
 	for _, opt := range opts {
 		opt(proxy)
@@ -84,7 +85,7 @@ func NewProxy(ctx context.Context, opts ...ProxyOption) *proxy {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", proxy.handleClientRequest)
-	mux.HandleFunc("/eavesdrop-sse", proxy.handleSSE)
+	mux.HandleFunc("/eavesdrop_sse", proxy.handleSSE)
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", proxy.proxyPort),
@@ -169,8 +170,8 @@ func (p *proxy) handleClientRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(resp.StatusCode)
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+	// w.WriteHeader(resp.StatusCode)
 	_, err = w.Write(body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

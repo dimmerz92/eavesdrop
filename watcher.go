@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fatih/color"
@@ -33,6 +34,7 @@ type watcher struct {
 	excluder       Excluder
 	proxy          Proxy
 	shell          Shell
+	mu             *sync.Mutex
 }
 
 type WatcherOption func(*watcher)
@@ -41,7 +43,7 @@ func WithWatchedFiletypes(filetypes ...string) WatcherOption {
 	return func(w *watcher) { w.filetypes = ToSet(filetypes...) }
 }
 
-func WithWatcherDirs(dirs ...string) WatcherOption {
+func WithWatchedDirs(dirs ...string) WatcherOption {
 	return func(w *watcher) { w.dirs = ToSet(dirs...) }
 }
 
@@ -81,7 +83,7 @@ func WithShell(shell Shell) WatcherOption {
 	return func(w *watcher) { w.shell = shell }
 }
 
-func NewWatcher(ctx context.Context, name string, opts ...WatcherOption) *watcher {
+func NewWatcher(ctx context.Context, name string, mu *sync.Mutex, opts ...WatcherOption) *watcher {
 	if name = strings.TrimSpace(name); name == "" {
 		panic("watcher requires a name")
 	}
@@ -90,6 +92,7 @@ func NewWatcher(ctx context.Context, name string, opts ...WatcherOption) *watche
 		ctx:          ctx,
 		name:         name,
 		refreshDelay: DefaultRefreshDelay,
+		mu:           mu,
 	}
 
 	for _, opt := range opts {
@@ -167,17 +170,22 @@ func (w *watcher) watched(event Event) bool {
 }
 
 func (w *watcher) runJobs() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	if err := w.shell.KillProcessGroup(); err != nil {
 		color.Red("%s: failed to kill previous service: %v", w.name, err)
 	}
 
 	for _, task := range w.tasks {
+		fmt.Printf("%s: running task: %s\n", color.CyanString(w.name), task)
 		if err := w.shell.ExecAndWait(task); err != nil {
 			color.Red("%s: failed to run task: %v", w.name, err)
 		}
 	}
 
 	if w.service != "" {
+		fmt.Printf("%s: running service: %s\n", color.BlueString(w.name), w.service)
 		if err := w.shell.ExecAndReturn(w.service); err != nil {
 			color.Red("%s: failed to run service: %v", w.name, err)
 		}

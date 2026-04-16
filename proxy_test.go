@@ -108,7 +108,7 @@ func TestProxy(t *testing.T) {
 		})
 
 		t.Run("sse refresh handling", func(t *testing.T) {
-			req, _ := http.NewRequest("GET", "http://127.0.0.1:8001/eavesdrop-sse", nil)
+			req, _ := http.NewRequest("GET", "http://127.0.0.1:8001/eavesdrop_sse", nil)
 			req.Header.Set("Accept", "text/event-stream")
 
 			client := http.Client{Timeout: 0}

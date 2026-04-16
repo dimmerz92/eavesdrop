@@ -71,14 +71,14 @@ func DefaultConfig() Config {
 			},
 			Shell: ShellConfig{
 				Tasks:                  []string{},
-				TaskTimeout:            uint(eavesdrop.DefaultTaskRunTimeout),
+				TaskTimeout:            uint(eavesdrop.DefaultTaskRunTimeout.Milliseconds()),
 				Service:                "",
-				ServiceShutdownTimeout: uint(eavesdrop.DefaultServiceShutdownTimeout),
-				DebounceDelay:          uint(eavesdrop.DefaultDebounceDelay),
+				ServiceShutdownTimeout: uint(eavesdrop.DefaultServiceShutdownTimeout.Milliseconds()),
+				DebounceDelay:          uint(eavesdrop.DefaultDebounceDelay.Milliseconds()),
 				RunOnStart:             true,
 			},
 			TriggerRefresh: false,
-			RefreshDelay:   uint(eavesdrop.DefaultRefreshDelay),
+			RefreshDelay:   uint(eavesdrop.DefaultRefreshDelay.Milliseconds()),
 		}},
 		Proxy: ProxyConfig{
 			Enabled:   false,
