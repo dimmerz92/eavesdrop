@@ -1,123 +1,51 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 	"os/signal"
 	"strings"
-	"sync"
-	"syscall"
 
-	"github.com/dimmerz92/eavesdrop"
-	"github.com/fatih/color"
-)
-
-var (
-	VERSION string
-	AUTHOR  = "Andrew Weymes <andrew.weymes@sittellalab.com.au>"
-
-	wg = sync.WaitGroup{}
+	"github.com/dimmerz92/eavesdrop/internal"
 )
 
 func main() {
-	args := os.Args
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
 
-	if len(args) == 1 {
-		runEavesdrop()
+	if len(os.Args) == 1 {
+		internal.RunEavesdrop(ctx)
 		return
 	}
 
-	switch {
-	case args[1] == "help":
-		println(help)
+	if os.Args[1] == "help" {
+		println(internal.Help)
+		return
+	}
 
-	case args[1] == "init":
+	if os.Args[1] == "init" {
 		f := flag.NewFlagSet("init", flag.ContinueOnError)
-		outputDir := f.String("out", ".", "the desired output directory")
-		ext := f.String("ext", ".json", "the desired format ('.json', '.toml', '.yaml')")
-		err := f.Parse(args[2:])
+		out := f.String("out", ".", "the output directory for the generated config")
+		ext := f.String("ext", ".json", "the ouput format for the generated config (json, toml, yaml)")
+
+		err := f.Parse(os.Args[2:])
 		if err != nil {
-			color.Red("error: %v", err)
-			os.Exit(1)
+			panic(err)
 		}
 
-		err = eavesdrop.GenerateConfig(*outputDir, *ext)
+		err = internal.GenerateConfig(*out, *ext)
 		if err != nil {
-			color.Red("error: %v", err)
+			panic(err)
 		}
-
-	case strings.HasPrefix(args[1], "-"):
-		runEavesdrop()
-
-	default:
-		fmt.Printf("eavesdrop %s: unknown command\nRun 'eavesdrop help' for usage.", args[1])
-		os.Exit(1)
-	}
-}
-
-func runEavesdrop() {
-	println(splash)
-
-	path := flag.String("config", ".eavesdrop.json", "the path to the config file")
-	flag.Parse()
-
-	config, err := eavesdrop.GetConfig(*path)
-	if err != nil {
-		color.Red("error: %v", err)
-		os.Exit(1)
+		return
 	}
 
-	manager, err := eavesdrop.NewEventManager(config)
-	if err != nil {
-		color.Red("error: %v", err)
-		os.Exit(1)
+	if strings.HasPrefix(os.Args[1], "-") {
+		internal.RunEavesdrop(ctx)
+		return
 	}
 
-	go manager.Start()
-
-	wg.Add(1)
-	go cleanup(manager)
-
-	wg.Wait()
+	panic(fmt.Sprintf("eavesdrop %s: unknown command\nRun 'eavesdrop help' for usage.", os.Args[1]))
 }
-
-func cleanup(manager *eavesdrop.EventManager) {
-	defer wg.Done()
-
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-	s := <-sig
-
-	color.Cyan("shutdown with signal: %s", s.String())
-	manager.Stop()
-}
-
-var splash = fmt.Sprintf(`
-███████╗ █████╗ ██╗   ██╗███████╗███████╗██████╗ ██████╗  ██████╗ ██████╗
-██╔════╝██╔══██╗██║   ██║██╔════╝██╔════╝██╔══██╗██╔══██╗██╔═══██╗██╔══██╗
-█████╗  ███████║██║   ██║█████╗  ███████╗██║  ██║██████╔╝██║   ██║██████╔╝
-██╔══╝  ██╔══██║╚██╗ ██╔╝██╔══╝  ╚════██║██║  ██║██╔══██╗██║   ██║██╔═══╝
-███████╗██║  ██║ ╚████╔╝ ███████╗███████║██████╔╝██║  ██║╚██████╔╝██║
-╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚══════╝╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝
-%s
-%s
-Live reloading for any app!
-
-`, VERSION, AUTHOR)
-
-var help = splash +
-	color.YellowString("USAGE:\n") +
-	color.WhiteString("\teavesdrop ") +
-	color.BlueString("[COMMAND] ") + color.MagentaString("[OPTIONS]\n\n") +
-	color.YellowString("COMMANDS:\n") +
-	color.BlueString("\tinit ") + color.MagentaString("[options]\n") +
-	color.WhiteString("\tGenerates a config file.\n") +
-	color.MagentaString("\t-out") + color.WhiteString(" directory to save the generated config. Defaults to .\n") +
-	color.MagentaString("\t-ext") + color.WhiteString(" the filetype to generate (.json, .toml, .yaml). Defaults to .json\n\n") +
-	color.BlueString("\thelp\n") +
-	color.WhiteString("\tPrints help text for eavesdrop.\n\n") +
-	color.YellowString("OPTIONS:\n") +
-	color.WhiteString("The following options can be used when running without a command:\n") +
-	color.MagentaString("\t-config\n") +
-	color.WhiteString("\tThe path of the config file. Defaults to ./.eavesdrop.json\n")
