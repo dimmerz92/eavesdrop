@@ -32,7 +32,7 @@ func ShellFlag(prefix string) string {
 	return "/C"
 }
 
-func (s *Shell) ToProcessGroup() error {
+func (s *shell) ToProcessGroup() error {
 	if s.cmd == nil {
 		return fmt.Errorf("nil shell")
 	}
@@ -42,11 +42,11 @@ func (s *Shell) ToProcessGroup() error {
 	return nil
 }
 
-func (s *Shell) TerminateProcessGroup() error {
+func (s *shell) TerminateProcessGroup() error {
 	return windows.GenerateConsoleCtrlEvent(windows.CTRL_BREAK_EVENT, uint32(s.pid))
 }
 
-func (s *Shell) KillProcessGroup() error {
+func (s *shell) KillProcessGroup() error {
 	pid := strconv.Itoa(s.pid)
 	cmd := exec.Command("taskkill", "/F", "/T", "/PID", pid)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}

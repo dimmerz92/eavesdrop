@@ -31,7 +31,7 @@ func ShellFlag(prefix string) string {
 	return "-c"
 }
 
-func (s *Shell) ToProcessGroup() error {
+func (s *shell) ToProcessGroup() error {
 	if s.cmd == nil {
 		return fmt.Errorf("nil shell")
 	}
@@ -41,7 +41,7 @@ func (s *Shell) ToProcessGroup() error {
 	return nil
 }
 
-func (s *Shell) SignalProcessGroup(signal syscall.Signal) error {
+func (s *shell) SignalProcessGroup(signal syscall.Signal) error {
 	if s.cmd == nil || s.cmd.Process == nil {
 		return nil
 	}
@@ -57,10 +57,10 @@ func (s *Shell) SignalProcessGroup(signal syscall.Signal) error {
 	return syscall.Kill(-pgid, signal)
 }
 
-func (s *Shell) TerminateProcessGroup() error {
+func (s *shell) TerminateProcessGroup() error {
 	return s.SignalProcessGroup(syscall.SIGTERM)
 }
 
-func (s *Shell) KillProcessGroup() error {
+func (s *shell) KillProcessGroup() error {
 	return s.SignalProcessGroup(syscall.SIGKILL)
 }

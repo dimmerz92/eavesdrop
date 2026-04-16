@@ -15,7 +15,15 @@ const (
 	DefaultServiceShutdownTimeout = 5 * time.Second
 )
 
-type Shell struct {
+type Shell interface {
+	ExecAndWait(task string) error
+	ExecAndReturn(service string) error
+	TerminateProcessGroup() error
+	KillProcessGroup() error
+	Stop() error
+}
+
+type shell struct {
 	ctx            context.Context
 	cmd            *exec.Cmd
 	pid            int
@@ -25,10 +33,10 @@ type Shell struct {
 	serviceTimeout time.Duration
 }
 
-type ShellOption func(*Shell)
+type ShellOption func(*shell)
 
 func WithTaskTimeout(d time.Duration) ShellOption {
-	return func(s *Shell) {
+	return func(s *shell) {
 		if d > 0 {
 			s.taskTimeout = d
 		}
@@ -36,16 +44,16 @@ func WithTaskTimeout(d time.Duration) ShellOption {
 }
 
 func WithServiceTimeout(d time.Duration) ShellOption {
-	return func(s *Shell) {
+	return func(s *shell) {
 		if d > 0 {
 			s.serviceTimeout = d
 		}
 	}
 }
 
-func NewShell(ctx context.Context, opts ...ShellOption) *Shell {
+func NewShell(ctx context.Context, opts ...ShellOption) *shell {
 	prefix := DetectShell()
-	shell := &Shell{
+	shell := &shell{
 		ctx:            ctx,
 		prefix:         prefix,
 		flag:           ShellFlag(prefix),
@@ -60,7 +68,7 @@ func NewShell(ctx context.Context, opts ...ShellOption) *Shell {
 	return shell
 }
 
-func (s *Shell) ExecAndWait(task string) error {
+func (s *shell) ExecAndWait(task string) error {
 	if strings.TrimSpace(task) == "" {
 		return fmt.Errorf("cannot run blank task")
 	}
@@ -93,7 +101,7 @@ func (s *Shell) ExecAndWait(task string) error {
 	return s.cmd.Wait()
 }
 
-func (s *Shell) ExecAndReturn(service string) error {
+func (s *shell) ExecAndReturn(service string) error {
 	if strings.TrimSpace(service) == "" {
 		return fmt.Errorf("cannot run blank task")
 	}
@@ -114,7 +122,7 @@ func (s *Shell) ExecAndReturn(service string) error {
 	return nil
 }
 
-func (s *Shell) Stop() error {
+func (s *shell) Stop() error {
 	if s.cmd == nil || s.cmd.Process == nil {
 		return nil
 	}

@@ -28,7 +28,7 @@ type Watcher struct {
 	debouncer      Debouncer
 	excluder       Excluder
 	proxy          Proxy
-	shell          *Shell
+	shell          Shell
 }
 
 type WatcherOption func(*Watcher)
@@ -73,7 +73,7 @@ func WithProxy(proxy Proxy) WatcherOption {
 	return func(w *Watcher) { w.proxy = proxy }
 }
 
-func WithShell(shell *Shell) WatcherOption {
+func WithShell(shell Shell) WatcherOption {
 	return func(w *Watcher) { w.shell = shell }
 }
 

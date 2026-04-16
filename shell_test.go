@@ -11,7 +11,7 @@ import (
 )
 
 func TestShell(t *testing.T) {
-	newShell := func() (*eavesdrop.Shell, *os.File, *os.File, func()) {
+	newShell := func() (eavesdrop.Shell, *os.File, *os.File, func()) {
 		stdout := os.Stdout
 		r, w, _ := os.Pipe()
 		os.Stdout = w
