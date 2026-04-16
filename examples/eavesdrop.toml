@@ -1,0 +1,81 @@
+root_dir = "."
+tmp = true
+cleanup_tmp = true
+
+[global_exclude]
+dirs = [ "data", "dist", "node_modules", "tmp" ]
+files = [ ]
+regex = [
+  "^\\.?(\\/?|\\\\?)(?:\\w+(\\/|\\\\))*(\\.\\w+)$",
+  "^.+\\.sqlite$",
+  "^.+\\.wal$",
+  "^.+\\.shm$"
+]
+
+[[watchers]]
+name = "css watcher"
+filetypes = [ ".css" ]
+dirs = [ ]
+files = [ ]
+trigger_refresh = true
+refresh_delay = 100
+
+  [watchers.exclude]
+  dirs = [ ]
+  files = [ "style.css" ]
+  regex = [ ]
+
+  [watchers.shell]
+  tasks = [ "tailwindcss -i input.css -o style.css" ]
+  task_timeout = 2_000
+  service = ""
+  service_shutdown_timeout = 5_000
+  debounce_delay = 100
+  run_on_start = false
+
+[[watchers]]
+name = "templ watcher"
+filetypes = [ ".templ" ]
+dirs = [ ]
+files = [ ]
+trigger_refresh = false
+refresh_delay = 100
+
+  [watchers.exclude]
+  dirs = [ ]
+  files = [ ]
+  regex = [ ]
+
+  [watchers.shell]
+  tasks = [ "templ generate", "tailwindcss -i input.css -o style.css" ]
+  task_timeout = 2_000
+  service = ""
+  service_shutdown_timeout = 5_000
+  debounce_delay = 100
+  run_on_start = true
+
+[[watchers]]
+name = "go watcher"
+filetypes = [ ".go" ]
+dirs = [ ]
+files = [ ]
+trigger_refresh = true
+refresh_delay = 100
+
+  [watchers.exclude]
+  dirs = [ ]
+  files = [ ]
+  regex = [ "_test.go" ]
+
+  [watchers.shell]
+  tasks = [ "go build -o tmp/main cmd/main.go" ]
+  task_timeout = 2_000
+  service = "tmp/main"
+  service_shutdown_timeout = 5_000
+  debounce_delay = 100
+  run_on_start = true
+
+[proxy]
+enabled = true
+app_port = 8_000
+proxy_port = 8_001
