@@ -18,6 +18,7 @@ const (
 
 type Watcher interface {
 	Watch(events <-chan Event)
+	RunJobs()
 }
 
 type watcher struct {
@@ -28,7 +29,6 @@ type watcher struct {
 	files          Set[string]
 	tasks          []string
 	service        string
-	runOnStart     bool
 	triggerRefresh bool
 	refreshDelay   time.Duration
 	debouncer      Debouncer
@@ -58,10 +58,6 @@ func WithTasks(tasks ...string) WatcherOption {
 
 func WithService(service string) WatcherOption {
 	return func(w *watcher) { w.service = service }
-}
-
-func WithRunOnStart(b bool) WatcherOption {
-	return func(w *watcher) { w.runOnStart = b }
 }
 
 func WithRefreshDelay(d time.Duration) WatcherOption {
@@ -136,10 +132,6 @@ func NewWatcher(ctx context.Context, name string, mu *sync.Mutex, opts ...Watche
 }
 
 func (w *watcher) Watch(events <-chan Event) {
-	if w.runOnStart {
-		w.runJobs()
-	}
-
 	for {
 		select {
 		case <-w.ctx.Done():
@@ -149,7 +141,7 @@ func (w *watcher) Watch(events <-chan Event) {
 			if w.watched(event) && !w.excluder.ShouldIgnore(event.file) {
 				color.Green("%s changed", event.file.Name())
 				w.debouncer.Do(func() {
-					w.runJobs()
+					w.RunJobs()
 					if w.triggerRefresh && w.proxy != nil {
 						time.Sleep(w.refreshDelay)
 						w.proxy.RefreshBrowser()
@@ -178,7 +170,7 @@ func (w *watcher) watched(event Event) bool {
 	return false
 }
 
-func (w *watcher) runJobs() {
+func (w *watcher) RunJobs() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 

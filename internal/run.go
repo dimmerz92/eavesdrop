@@ -6,6 +6,9 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
+
+	"github.com/dimmerz92/eavesdrop"
 )
 
 func RunEavesdrop(ctx context.Context) {
@@ -21,7 +24,18 @@ func RunEavesdrop(ctx context.Context) {
 
 	emitter := ConstructEventEmitter(ctx, config)
 	proxy := ConstructProxy(ctx, config.Proxy)
-	watchers := ConstructWatchers(ctx, proxy, config.Watchers)
+
+	emitter.Start(ctx)
+
+	var mu sync.Mutex
+	var watchers []eavesdrop.Watcher
+	for _, watcherConfig := range config.Watchers {
+		watcher := ConstructWatcher(ctx, config.RootDir, &mu, proxy, watcherConfig)
+		if watcherConfig.RunOnStart {
+			watcher.RunJobs()
+		}
+		watchers = append(watchers, watcher)
+	}
 
 	if config.Tmp {
 		err := os.MkdirAll(filepath.Join(config.RootDir, "tmp"), 0755)
@@ -38,8 +52,6 @@ func RunEavesdrop(ctx context.Context) {
 			}()
 		}
 	}
-
-	emitter.Start(ctx)
 
 	for _, watcher := range watchers {
 		go watcher.Watch(emitter.Subscribe())

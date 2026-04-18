@@ -2,6 +2,7 @@ package eavesdrop
 
 import (
 	"io/fs"
+	"path/filepath"
 	"regexp"
 )
 
@@ -10,6 +11,7 @@ type Excluder interface {
 }
 
 type excluder struct {
+	root  string
 	dirs  Set[string]
 	files Set[string]
 	regex []*regexp.Regexp
@@ -34,7 +36,7 @@ func WithRegex(regex ...string) ExcluderOption {
 }
 
 // NewExcluder returns a new instance of the default Excluder implementation.
-func NewExcluder(opts ...ExcluderOption) *excluder {
+func NewExcluder(root string, opts ...ExcluderOption) *excluder {
 	excluder := &excluder{}
 
 	for _, opt := range opts {
@@ -56,6 +58,13 @@ func NewExcluder(opts ...ExcluderOption) *excluder {
 func (e *excluder) ShouldIgnore(file fs.FileInfo) bool {
 	switch file.IsDir() {
 	case true:
+		rel, _ := filepath.Rel(e.root, file.Name())
+		for dir := range e.dirs {
+			if rel == dir || IsRelative(dir, rel) {
+				return true
+			}
+		}
+
 		if _, ok := e.dirs[file.Name()]; ok {
 			return true
 		}
