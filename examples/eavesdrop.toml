@@ -17,6 +17,7 @@ name = "css watcher"
 filetypes = [ ".css" ]
 dirs = [ ]
 files = [ ]
+run_on_start = false
 trigger_refresh = true
 refresh_delay = 100
 
@@ -31,13 +32,13 @@ refresh_delay = 100
   service = ""
   service_shutdown_timeout = 5_000
   debounce_delay = 100
-  run_on_start = false
 
 [[watchers]]
 name = "templ watcher"
 filetypes = [ ".templ" ]
 dirs = [ ]
 files = [ ]
+run_on_start = true
 trigger_refresh = false
 refresh_delay = 100
 
@@ -52,13 +53,13 @@ refresh_delay = 100
   service = ""
   service_shutdown_timeout = 5_000
   debounce_delay = 100
-  run_on_start = true
 
 [[watchers]]
 name = "go watcher"
 filetypes = [ ".go" ]
 dirs = [ ]
 files = [ ]
+run_on_start = true
 trigger_refresh = true
 refresh_delay = 100
 
@@ -73,7 +74,6 @@ refresh_delay = 100
   service = "tmp/main"
   service_shutdown_timeout = 5_000
   debounce_delay = 100
-  run_on_start = true
 
 [proxy]
 enabled = true

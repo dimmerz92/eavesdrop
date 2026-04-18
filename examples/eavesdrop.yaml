@@ -31,7 +31,7 @@ watchers:
       service: ''
       service_shutdown_timeout: 5000
       debounce_delay: 100
-      run_on_start: false
+    run_on_start: false
     trigger_refresh: true
     refresh_delay: 100
   - name: templ watcher
@@ -51,7 +51,7 @@ watchers:
       service: ''
       service_shutdown_timeout: 5000
       debounce_delay: 100
-      run_on_start: true
+    run_on_start: true
     trigger_refresh: false
     refresh_delay: 100
   - name: go watcher
@@ -71,7 +71,7 @@ watchers:
       service: tmp/main
       service_shutdown_timeout: 5000
       debounce_delay: 100
-      run_on_start: true
+    run_on_start: true
     trigger_refresh: true
     refresh_delay: 100
 proxy:
