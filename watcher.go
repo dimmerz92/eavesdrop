@@ -138,7 +138,7 @@ func (w *watcher) Watch(events <-chan Event) {
 			return
 
 		case event := <-events:
-			if w.watched(event) {
+			if w.watched(event) && !w.excluder.ShouldIgnore(event.file) {
 				color.Green("%s changed", event.file.Name())
 				w.debouncer.Do(func() {
 					w.runJobs()
@@ -153,7 +153,7 @@ func (w *watcher) Watch(events <-chan Event) {
 }
 
 func (w *watcher) watched(event Event) bool {
-	if _, hasExt := w.filetypes[filepath.Ext(event.file.Name())]; hasExt {
+	if _, hasExt := w.filetypes[filepath.Ext(event.file.Name())]; !hasExt {
 		return true
 	}
 
