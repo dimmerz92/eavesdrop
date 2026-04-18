@@ -51,6 +51,7 @@ func ConstructWatchers(ctx context.Context, proxy eavesdrop.Proxy, configs []Wat
 			)),
 			eavesdrop.WithTasks(config.Shell.Tasks...),
 			eavesdrop.WithService(config.Shell.Service),
+			eavesdrop.WithRunOnStart(config.RunOnStart),
 			eavesdrop.WithTriggerRefresh(config.TriggerRefresh),
 			eavesdrop.WithRefreshDelay(time.Millisecond*time.Duration(config.RefreshDelay)),
 			eavesdrop.WithShell(eavesdrop.NewShell(ctx,

@@ -28,6 +28,7 @@ type watcher struct {
 	files          Set[string]
 	tasks          []string
 	service        string
+	runOnStart     bool
 	triggerRefresh bool
 	refreshDelay   time.Duration
 	debouncer      Debouncer
@@ -57,6 +58,10 @@ func WithTasks(tasks ...string) WatcherOption {
 
 func WithService(service string) WatcherOption {
 	return func(w *watcher) { w.service = service }
+}
+
+func WithRunOnStart(b bool) WatcherOption {
+	return func(w *watcher) { w.runOnStart = b }
 }
 
 func WithRefreshDelay(d time.Duration) WatcherOption {
@@ -131,7 +136,10 @@ func NewWatcher(ctx context.Context, name string, mu *sync.Mutex, opts ...Watche
 }
 
 func (w *watcher) Watch(events <-chan Event) {
-	w.runJobs()
+	if w.runOnStart {
+		w.runJobs()
+	}
+
 	for {
 		select {
 		case <-w.ctx.Done():
@@ -153,7 +161,7 @@ func (w *watcher) Watch(events <-chan Event) {
 }
 
 func (w *watcher) watched(event Event) bool {
-	if _, hasExt := w.filetypes[filepath.Ext(event.file.Name())]; !hasExt {
+	if _, hasExt := w.filetypes[filepath.Ext(event.file.Name())]; hasExt {
 		return true
 	}
 

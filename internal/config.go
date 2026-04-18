@@ -29,6 +29,7 @@ type WatcherConfig struct {
 	Files          []string       `json:"files" toml:"files" yaml:"files"`
 	Exclude        ExcluderConfig `json:"exclude" toml:"exclude" yaml:"exclude"`
 	Shell          ShellConfig    `json:"shell" toml:"shell" yaml:"shell"`
+	RunOnStart     bool           `json:"run_on_start" toml:"run_on_start" yaml:"run_on_start"`
 	TriggerRefresh bool           `json:"trigger_refresh" toml:"trigger_refresh" yaml:"trigger_refresh"`
 	RefreshDelay   uint           `json:"refresh_delay" toml:"refresh_delay" yaml:"refresh_delay"`
 }
@@ -39,7 +40,6 @@ type ShellConfig struct {
 	Service                string   `json:"service" toml:"service" yaml:"service"`
 	ServiceShutdownTimeout uint     `json:"service_shutdown_timeout" toml:"service_shutdown_timeout" yaml:"service_shutdown_timeout"`
 	DebounceDelay          uint     `json:"debounce_delay" toml:"debounce_delay" yaml:"debounce_delay"`
-	RunOnStart             bool     `json:"run_on_start" toml:"run_on_start" yaml:"run_on_start"`
 }
 
 type ProxyConfig struct {
@@ -75,8 +75,8 @@ func DefaultConfig() Config {
 				Service:                "",
 				ServiceShutdownTimeout: uint(eavesdrop.DefaultServiceShutdownTimeout.Milliseconds()),
 				DebounceDelay:          uint(eavesdrop.DefaultDebounceDelay.Milliseconds()),
-				RunOnStart:             true,
 			},
+			RunOnStart:     true,
 			TriggerRefresh: false,
 			RefreshDelay:   uint(eavesdrop.DefaultRefreshDelay.Milliseconds()),
 		}},
