@@ -105,22 +105,23 @@ func (e *EventEmitter) Start(ctx context.Context) {
 
 				if file.IsDir() {
 					if event.Has(fsnotify.Create) || event.Has(fsnotify.Write) {
-						err := e.RecursiveWatch(file.Name())
+						err := e.RecursiveWatch(event.Name)
 						if err != nil {
 							color.Red("failed to watch recursively: %v", err)
 							continue
 						}
-						color.Magenta("watching: %s", event.Name)
 					}
 
 					if event.Has(fsnotify.Remove) || event.Has(fsnotify.Rename) {
-						err := e.RecursiveUnwatch(file.Name())
+						err := e.RecursiveUnwatch(event.Name)
 						if err != nil {
 							color.Red("failed to unwatch recursively: %v", err)
 							continue
 						}
 						color.Magenta("unwatched: %s", event.Name)
 					}
+
+					continue
 				}
 
 				e.publish(Event{file: file})
