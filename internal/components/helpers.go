@@ -1,10 +1,11 @@
-package eavesdrop
+package components
 
 import (
 	"path/filepath"
 	"strings"
 )
 
+// Set is a generic set backed by a map.
 type Set[T comparable] map[T]struct{}
 
 // ToSet adds all passed values to a Set.
@@ -22,6 +23,5 @@ func IsRelative(dir, path string) bool {
 	if err != nil {
 		return false
 	}
-
 	return rel != "." && !strings.HasPrefix(rel, "..")
 }

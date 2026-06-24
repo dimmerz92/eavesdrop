@@ -1,10 +1,10 @@
-package eavesdrop_test
+package components_test
 
 import (
 	"reflect"
 	"testing"
 
-	"github.com/dimmerz92/eavesdrop"
+	"github.com/dimmerz92/eavesdrop/internal/components"
 )
 
 func TestToSet(t *testing.T) {
@@ -12,17 +12,17 @@ func TestToSet(t *testing.T) {
 		tests := []struct {
 			name     string
 			values   []string
-			expected eavesdrop.Set[string]
+			expected components.Set[string]
 		}{
-			{name: "nil slice", expected: make(eavesdrop.Set[string])},
-			{name: "empty slice", values: []string{}, expected: make(eavesdrop.Set[string])},
+			{name: "nil slice", expected: make(components.Set[string])},
+			{name: "empty slice", values: []string{}, expected: make(components.Set[string])},
 			{name: "three unique", values: []string{"1", "2", "3"}, expected: map[string]struct{}{"1": {}, "2": {}, "3": {}}},
 			{name: "duplicates", values: []string{"1", "1", "2", "2", "3", "3"}, expected: map[string]struct{}{"1": {}, "2": {}, "3": {}}},
 		}
 
 		for _, test := range tests {
 			t.Run(test.name, func(t *testing.T) {
-				got := eavesdrop.ToSet(test.values...)
+				got := components.ToSet(test.values...)
 				if !reflect.DeepEqual(got, test.expected) {
 					t.Errorf("expected %#v, got %#v", test.expected, got)
 				}
@@ -34,17 +34,17 @@ func TestToSet(t *testing.T) {
 		tests := []struct {
 			name     string
 			values   []int
-			expected eavesdrop.Set[int]
+			expected components.Set[int]
 		}{
-			{name: "nil slice", expected: make(eavesdrop.Set[int])},
-			{name: "empty slice", values: []int{}, expected: make(eavesdrop.Set[int])},
+			{name: "nil slice", expected: make(components.Set[int])},
+			{name: "empty slice", values: []int{}, expected: make(components.Set[int])},
 			{name: "three unique", values: []int{1, 2, 3}, expected: map[int]struct{}{1: {}, 2: {}, 3: {}}},
 			{name: "duplicates", values: []int{1, 1, 2, 2, 3, 3}, expected: map[int]struct{}{1: {}, 2: {}, 3: {}}},
 		}
 
 		for _, test := range tests {
 			t.Run(test.name, func(t *testing.T) {
-				got := eavesdrop.ToSet(test.values...)
+				got := components.ToSet(test.values...)
 				if !reflect.DeepEqual(got, test.expected) {
 					t.Errorf("expected %#v, got %#v", test.expected, got)
 				}
@@ -56,17 +56,17 @@ func TestToSet(t *testing.T) {
 		tests := []struct {
 			name     string
 			values   []float32
-			expected eavesdrop.Set[float32]
+			expected components.Set[float32]
 		}{
-			{name: "nil slice", expected: make(eavesdrop.Set[float32])},
-			{name: "empty slice", values: []float32{}, expected: make(eavesdrop.Set[float32])},
+			{name: "nil slice", expected: make(components.Set[float32])},
+			{name: "empty slice", values: []float32{}, expected: make(components.Set[float32])},
 			{name: "three unique", values: []float32{1.1, 2.2, 3.3}, expected: map[float32]struct{}{1.1: {}, 2.2: {}, 3.3: {}}},
 			{name: "duplicates", values: []float32{1.1, 1.1, 2.2, 2.2, 3.3, 3.3}, expected: map[float32]struct{}{1.1: {}, 2.2: {}, 3.3: {}}},
 		}
 
 		for _, test := range tests {
 			t.Run(test.name, func(t *testing.T) {
-				got := eavesdrop.ToSet(test.values...)
+				got := components.ToSet(test.values...)
 				if !reflect.DeepEqual(got, test.expected) {
 					t.Errorf("expected %#v, got %#v", test.expected, got)
 				}
@@ -94,21 +94,9 @@ func TestIsRelative(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := eavesdrop.IsRelative(test.dir, test.path); got != test.expected {
+			if got := components.IsRelative(test.dir, test.path); got != test.expected {
 				t.Errorf("expected %t, got %t", test.expected, got)
 			}
 		})
 	}
-	// t.Run("test valid child", func(t *testing.T) {
-	//
-	// 	if !eavesdrop.Is("a/b", "a/b/c/file") {
-	// 		t.Fatalf("expected true, got false")
-	// 	}
-	// })
-	//
-	// t.Run("test invalid", func(t *testing.T) {
-	// 	if eavesdrop.IsChild("a/b", "x/y/z/file") {
-	// 		t.Fatalf("expected false, got true")
-	// 	}
-	// })
 }
