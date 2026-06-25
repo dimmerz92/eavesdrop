@@ -1,4 +1,4 @@
-package internal_test
+package config_test
 
 import (
 	"encoding/json"
@@ -8,19 +8,19 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dimmerz92/eavesdrop/internal"
+	"github.com/dimmerz92/eavesdrop/internal/config"
 )
 
 func TestJSON(t *testing.T) {
 	tmp := t.TempDir()
 
 	t.Run("test generate", func(t *testing.T) {
-		err := internal.GenerateJsonConfig(tmp)
+		err := config.GenerateJsonConfig(tmp)
 		if err != nil {
 			t.Fatalf("failed to generate json config: %v", err)
 		}
 
-		path := filepath.Join(tmp, internal.JSON_CONFIG)
+		path := filepath.Join(tmp, config.JSON_CONFIG)
 		info, err := os.Stat(path)
 		if err != nil || info.Size() == 0 {
 			t.Fatal("expected json config to be written and non-empty")
@@ -35,14 +35,14 @@ func TestJSON(t *testing.T) {
 			t.Fatalf("failed to marshal config to json: %v", err)
 		}
 
-		path := filepath.Join(tmp, internal.JSON_CONFIG)
+		path := filepath.Join(tmp, config.JSON_CONFIG)
 
 		err = os.WriteFile(path, data, 0644)
 		if err != nil {
 			t.Fatalf("failed to save json: %v", err)
 		}
 
-		config, err := internal.ReadJsonConfig(path)
+		config, err := config.ReadJsonConfig(path)
 		if err != nil {
 			t.Fatalf("failed to read json config: %v", err)
 		}
@@ -53,7 +53,7 @@ func TestJSON(t *testing.T) {
 	})
 
 	t.Run("non-existent file", func(t *testing.T) {
-		_, err := internal.ReadJsonConfig("nonexistent.json")
+		_, err := config.ReadJsonConfig("nonexistent.json")
 		if err == nil || !strings.Contains(err.Error(), "failed to read json config") {
 			t.Errorf("expected read error, got: %v", err)
 		}
@@ -68,7 +68,7 @@ func TestJSON(t *testing.T) {
 			t.Fatalf("failed to write empty json file: %v", err)
 		}
 
-		_, err = internal.ReadJsonConfig(path)
+		_, err = config.ReadJsonConfig(path)
 		if err == nil || !strings.Contains(err.Error(), "failed to unmarshal json to config") {
 			t.Errorf("expected empty file error, got: %v", err)
 		}

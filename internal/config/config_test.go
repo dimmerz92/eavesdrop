@@ -1,13 +1,13 @@
-package internal_test
+package config_test
 
 import (
 	"testing"
 
-	"github.com/dimmerz92/eavesdrop/internal"
+	"github.com/dimmerz92/eavesdrop/internal/config"
 )
 
-func generateConfig() internal.Config {
-	config := internal.DefaultConfig()
+func generateConfig() config.Config {
+	config := config.DefaultConfig()
 	config.Watchers[0].Filetypes = []string{".go"}
 	config.Watchers[0].Shell.Tasks = []string{"echo hello"}
 
@@ -15,7 +15,7 @@ func generateConfig() internal.Config {
 }
 
 func TestDefaultConfig(t *testing.T) {
-	config := internal.DefaultConfig()
+	config := config.DefaultConfig()
 
 	if config.RootDir != "." {
 		t.Fatalf("expected RootDir to be '.', got '%s'", config.RootDir)

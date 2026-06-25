@@ -1,10 +1,17 @@
-package internal
+package config
 
 import (
 	"fmt"
 	"path/filepath"
+)
 
-	"github.com/dimmerz92/eavesdrop"
+const (
+	DefaultAppPort                = 8000
+	DefaultProxyPort              = 8001
+	DefaultDebounceDelay          = 100
+	DefaultRefreshDelay           = 100
+	DefaultServiceShutdownTimeout = 5000
+	DefaultTaskRunTimeout         = 2000
 )
 
 type Config struct {
@@ -71,19 +78,19 @@ func DefaultConfig() Config {
 			},
 			Shell: ShellConfig{
 				Tasks:                  []string{},
-				TaskTimeout:            uint(eavesdrop.DefaultTaskRunTimeout.Milliseconds()),
+				TaskTimeout:            DefaultTaskRunTimeout,
 				Service:                "",
-				ServiceShutdownTimeout: uint(eavesdrop.DefaultServiceShutdownTimeout.Milliseconds()),
-				DebounceDelay:          uint(eavesdrop.DefaultDebounceDelay.Milliseconds()),
+				ServiceShutdownTimeout: DefaultServiceShutdownTimeout,
+				DebounceDelay:          DefaultDebounceDelay,
 			},
 			RunOnStart:     true,
 			TriggerRefresh: false,
-			RefreshDelay:   uint(eavesdrop.DefaultRefreshDelay.Milliseconds()),
+			RefreshDelay:   DefaultRefreshDelay,
 		}},
 		Proxy: ProxyConfig{
 			Enabled:   false,
-			AppPort:   eavesdrop.DefaultAppPort,
-			ProxyPort: eavesdrop.DefaultProxyPort,
+			AppPort:   DefaultAppPort,
+			ProxyPort: DefaultProxyPort,
 		},
 	}
 }

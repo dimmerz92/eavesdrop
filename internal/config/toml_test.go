@@ -1,4 +1,4 @@
-package internal_test
+package config_test
 
 import (
 	"os"
@@ -8,19 +8,19 @@ import (
 	"testing"
 
 	"github.com/BurntSushi/toml"
-	"github.com/dimmerz92/eavesdrop/internal"
+	"github.com/dimmerz92/eavesdrop/internal/config"
 )
 
 func TestTOML(t *testing.T) {
 	tmp := t.TempDir()
 
 	t.Run("test generate", func(t *testing.T) {
-		err := internal.GenerateTomlConfig(tmp)
+		err := config.GenerateTomlConfig(tmp)
 		if err != nil {
 			t.Fatalf("failed to generate toml config: %v", err)
 		}
 
-		path := filepath.Join(tmp, internal.TOML_CONFIG)
+		path := filepath.Join(tmp, config.TOML_CONFIG)
 		info, err := os.Stat(path)
 		if err != nil || info.Size() == 0 {
 			t.Fatal("expected toml config to be written and non-empty")
@@ -35,14 +35,14 @@ func TestTOML(t *testing.T) {
 			t.Fatalf("failed to marshal config to toml: %v", err)
 		}
 
-		path := filepath.Join(tmp, internal.TOML_CONFIG)
+		path := filepath.Join(tmp, config.TOML_CONFIG)
 
 		err = os.WriteFile(path, data, 0644)
 		if err != nil {
 			t.Fatalf("failed to save toml: %v", err)
 		}
 
-		config, err := internal.ReadTomlConfig(path)
+		config, err := config.ReadTomlConfig(path)
 		if err != nil {
 			t.Fatalf("failed to read toml config: %v", err)
 		}
@@ -53,7 +53,7 @@ func TestTOML(t *testing.T) {
 	})
 
 	t.Run("non-existent file", func(t *testing.T) {
-		_, err := internal.ReadTomlConfig("nonexistent.toml")
+		_, err := config.ReadTomlConfig("nonexistent.toml")
 		if err == nil || !strings.Contains(err.Error(), "failed to read toml config") {
 			t.Errorf("expected read error, got: %v", err)
 		}
@@ -68,7 +68,7 @@ func TestTOML(t *testing.T) {
 			t.Fatalf("failed to write empty toml file: %v", err)
 		}
 
-		_, err = internal.ReadTomlConfig(path)
+		_, err = config.ReadTomlConfig(path)
 		if err == nil || !strings.Contains(err.Error(), "toml config is empty") {
 			t.Errorf("expected empty file error, got: %v", err)
 		}

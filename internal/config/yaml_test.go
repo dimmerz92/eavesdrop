@@ -1,4 +1,4 @@
-package internal_test
+package config_test
 
 import (
 	"os"
@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dimmerz92/eavesdrop/internal"
+	"github.com/dimmerz92/eavesdrop/internal/config"
 	"gopkg.in/yaml.v3"
 )
 
@@ -15,12 +15,12 @@ func TestYAML(t *testing.T) {
 	tmp := t.TempDir()
 
 	t.Run("test generate", func(t *testing.T) {
-		err := internal.GenerateYamlConfig(tmp)
+		err := config.GenerateYamlConfig(tmp)
 		if err != nil {
 			t.Fatalf("failed to generate yaml config: %v", err)
 		}
 
-		path := filepath.Join(tmp, internal.YAML_CONFIG)
+		path := filepath.Join(tmp, config.YAML_CONFIG)
 		info, err := os.Stat(path)
 		if err != nil || info.Size() == 0 {
 			t.Fatal("expected yaml config to be written and non-empty")
@@ -35,14 +35,14 @@ func TestYAML(t *testing.T) {
 			t.Fatalf("failed to marshal config to yaml: %v", err)
 		}
 
-		path := filepath.Join(tmp, internal.YAML_CONFIG)
+		path := filepath.Join(tmp, config.YAML_CONFIG)
 
 		err = os.WriteFile(path, data, 0644)
 		if err != nil {
 			t.Fatalf("failed to save yaml: %v", err)
 		}
 
-		config, err := internal.ReadYamlConfig(path)
+		config, err := config.ReadYamlConfig(path)
 		if err != nil {
 			t.Fatalf("failed to read yaml config: %v", err)
 		}
@@ -53,7 +53,7 @@ func TestYAML(t *testing.T) {
 	})
 
 	t.Run("non-existent file", func(t *testing.T) {
-		_, err := internal.ReadYamlConfig("nonexistent.yaml")
+		_, err := config.ReadYamlConfig("nonexistent.yaml")
 		if err == nil || !strings.Contains(err.Error(), "failed to read yaml config") {
 			t.Errorf("expected read error, got: %v", err)
 		}
@@ -68,7 +68,7 @@ func TestYAML(t *testing.T) {
 			t.Fatalf("failed to write empty yaml file: %v", err)
 		}
 
-		_, err = internal.ReadYamlConfig(path)
+		_, err = config.ReadYamlConfig(path)
 		if err == nil || !strings.Contains(err.Error(), "yaml config is empty") {
 			t.Errorf("expected empty file error, got: %v", err)
 		}
