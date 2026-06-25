@@ -1,7 +1,6 @@
 package components
 
 import (
-	"fmt"
 	"sync"
 	"time"
 )
@@ -12,11 +11,8 @@ type Debouncer struct {
 	mu    sync.Mutex
 }
 
-func NewDebouncer(delay time.Duration) (*Debouncer, error) {
-	if delay <= 0 {
-		return nil, fmt.Errorf("debounce delay must be a positive non-zero duration")
-	}
-	return &Debouncer{delay: delay}, nil
+func NewDebouncer(delayMs uint) *Debouncer {
+	return &Debouncer{delay: time.Duration(delayMs) * time.Millisecond}
 }
 
 func (d *Debouncer) Do(callback func()) {
@@ -28,4 +24,10 @@ func (d *Debouncer) Do(callback func()) {
 	}
 
 	d.timer = time.AfterFunc(d.delay, callback)
+}
+
+func (d *Debouncer) UpdateDelay(delayMs uint) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.delay = time.Duration(delayMs) * time.Millisecond
 }
