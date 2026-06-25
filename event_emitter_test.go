@@ -1,158 +1,176 @@
-package eavesdrop_test
+package ev_test
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/dimmerz92/eavesdrop"
+	ev "github.com/dimmerz92/eavesdrop"
 )
 
-func TestEmitter(t *testing.T) {
-	tmp := t.TempDir()
+const eventTimeout = 2 * time.Second
 
-	excluder := eavesdrop.NewExcluder(
-		eavesdrop.WithDirs("ignore_me", "ignore_me2"),
-		eavesdrop.WithFiles(".env", ".DS_Store"),
-		eavesdrop.WithRegex("_test.go"),
-	)
+func testWatcher(t *testing.T, dir string) (*ev.Watcher, <-chan ev.Event) {
+	t.Helper()
+	ch := make(chan ev.Event, 16)
+	w := ev.NewWatcher(t.Context(), t.Name(), dir).
+		WithFiletypes(".go").
+		WithDebounceDelay(debounceDelay).
+		WithExcluder(ev.NewExcluder(dir)).
+		WithOnChange(func(e ev.Event) {
+			select {
+			case ch <- e:
+			default:
+			}
+		})
+	return w, ch
+}
 
-	emitter := eavesdrop.NewEmitter(tmp, eavesdrop.WithGlobalExcluder(excluder))
+func awaitEvent(t *testing.T, ch <-chan ev.Event) ev.Event {
+	t.Helper()
+	select {
+	case e := <-ch:
+		return e
+	case <-time.After(eventTimeout):
+		t.Error("timed out waiting for onChange to fire")
+		return ev.Event{}
+	}
+}
 
-	go func() {
-		emitter.Start(t.Context())
-	}()
-
-	time.Sleep(50 * time.Millisecond)
-
-	t.Run("create events", func(t *testing.T) {
-		tests := []struct {
-			name  string
-			dir   bool
-			path  string
-			event bool
-		}{
-			{name: "dir created and event emitted", dir: true, path: "watch_me", event: true},
-			{name: "dir created and event not emitted", dir: true, path: "ignore_me"},
-			{name: "file created and event emitted", path: "main.go", event: true},
-			{name: "file created and event not emitted", path: ".env"},
-			{name: "file created and event not emitted regex", path: "test_test.go"},
-		}
-
-		for _, test := range tests {
-			t.Run(test.name, func(t *testing.T) {
-				event := emitter.Subscribe()
-
-				if test.dir {
-					err := os.MkdirAll(filepath.Join(tmp, test.path), 0755)
-					if err != nil {
-						t.Fatalf("failed to make directory: %v", err)
-					}
-				} else {
-					file, err := os.Create(filepath.Join(tmp, test.path))
-					if err != nil {
-						t.Fatalf("failed to make file: %v", err)
-					}
-					defer file.Close()
-				}
-
-				ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
-				defer cancel()
-
-				select {
-				case <-ctx.Done():
-					if test.event {
-						t.Errorf("expected event, got none: %s", test.path)
-					}
-
-				case <-event:
-					if !test.event {
-						t.Errorf("got event, expected nothing: %s", test.path)
-					}
-				}
-			})
-		}
+func TestNewEmitter(t *testing.T) {
+	t.Run("PanicsOnEmptyRoot", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("expected panic on empty root")
+			}
+		}()
+		ev.NewEmitter("")
 	})
 
-	t.Run("rename events", func(t *testing.T) {
-		tests := []struct {
-			name  string
-			from  string
-			to    string
-			event bool
-		}{
-			{name: "dir renamed and event emitted", from: "watch_me", to: "watch_me2", event: true},
-			{name: "dir renamed and event not emitted", from: "ignore_me", to: "ignore_me2"},
-			{name: "file renamed and event emitted", from: "main.go", to: "test.go", event: true},
-			{name: "file renamed and event not emitted", from: ".env", to: ".DS_Store"},
-		}
-
-		for _, test := range tests {
-			t.Run(test.name, func(t *testing.T) {
-				event := emitter.Subscribe()
-
-				err := os.Rename(filepath.Join(tmp, test.from), filepath.Join(tmp, test.to))
-				if err != nil {
-					t.Fatalf("failed to rename path: %v", err)
-				}
-
-				ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
-				defer cancel()
-
-				select {
-				case <-ctx.Done():
-					if test.event {
-						t.Errorf("expected event, got none: %s -> %s", test.from, test.to)
-					}
-
-				case <-event:
-					if !test.event {
-						t.Errorf("got event, expected nothing: %s -> %s", test.from, test.to)
-					}
-				}
-			})
+	t.Run("ReturnsNonNil", func(t *testing.T) {
+		if e := ev.NewEmitter(t.TempDir()); e == nil {
+			t.Error("NewEmitter() returned nil")
 		}
 	})
+}
 
-	t.Run("delete events", func(t *testing.T) {
-		tests := []struct {
-			name  string
-			path  string
-			event bool
-		}{
-			{name: "dir deleted and event emitted", path: "watch_me2", event: true},
-			{name: "dir deleted and event not emitted", path: "ignore_me2"},
-			{name: "file deleted and event emitted", path: "test.go", event: true},
-			{name: "file deleted and event not emitted", path: ".DS_Store"},
-			{name: "file deleted and event not emitted", path: "test_test.go"},
-		}
+func TestEventEmitter_WithExcluder_Chainable(t *testing.T) {
+	e := ev.NewEmitter(t.TempDir())
+	if got := e.WithExcluder(ev.NewExcluder(".")); got != e {
+		t.Error("WithExcluder() did not return same *EventEmitter")
+	}
+}
 
-		for _, test := range tests {
-			t.Run(test.name, func(t *testing.T) {
-				event := emitter.Subscribe()
+func TestEventEmitter_RecursiveWatch(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 
-				err := os.Remove(filepath.Join(tmp, test.path))
-				if err != nil {
-					t.Fatalf("failed to delete path: %v", err)
+	e := ev.NewEmitter(dir)
+	if err := e.RecursiveWatch(dir); err != nil {
+		t.Errorf("RecursiveWatch() = %v, expected nil", err)
+	}
+}
+
+func TestEventEmitter_RecursiveUnwatch(t *testing.T) {
+	dir := t.TempDir()
+	e := ev.NewEmitter(dir)
+	if err := e.RecursiveWatch(dir); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.RecursiveUnwatch(dir); err != nil {
+		t.Errorf("RecursiveUnwatch() = %v, expected nil", err)
+	}
+}
+
+func TestEventEmitter_Start(t *testing.T) {
+	tests := []struct {
+		name    string
+		prepare func(dir string) error
+		trigger func(dir string) error
+	}{
+		{
+			name: "file creation fires onChange",
+			trigger: func(dir string) error {
+				return os.WriteFile(filepath.Join(dir, "new.go"), []byte("hello"), 0o644)
+			},
+		},
+		{
+			name: "file write fires onChange",
+			prepare: func(dir string) error {
+				return os.WriteFile(filepath.Join(dir, "existing.go"), []byte("initial"), 0o644)
+			},
+			trigger: func(dir string) error {
+				return os.WriteFile(filepath.Join(dir, "existing.go"), []byte("updated"), 0o644)
+			},
+		},
+		{
+			name: "file removal fires onChange",
+			prepare: func(dir string) error {
+				return os.WriteFile(filepath.Join(dir, "to_remove.go"), []byte("bye"), 0o644)
+			},
+			trigger: func(dir string) error {
+				return os.Remove(filepath.Join(dir, "to_remove.go"))
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+
+			if test.prepare != nil {
+				if err := test.prepare(dir); err != nil {
+					t.Fatal(err)
 				}
+			}
 
-				ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
-				defer cancel()
+			w, ch := testWatcher(t, dir)
+			e := ev.NewEmitter(dir)
+			e.Subscribe(w)
+			e.Start(t.Context())
 
-				select {
-				case <-ctx.Done():
-					if test.event {
-						t.Errorf("expected event, got none: %s", test.path)
-					}
+			if err := test.trigger(dir); err != nil {
+				t.Fatal(err)
+			}
 
-				case <-event:
-					if !test.event {
-						t.Errorf("got event, expected nothing: %s", test.path)
-					}
-				}
-			})
+			awaitEvent(t, ch)
+		})
+	}
+}
+
+func TestEventEmitter_Start_ExcluderFiltersEvents(t *testing.T) {
+	dir := t.TempDir()
+	excludedFile := filepath.Join(dir, "ignored.go")
+	watchedFile := filepath.Join(dir, "watched.go")
+
+	w, ch := testWatcher(t, dir)
+	e := ev.NewEmitter(dir).WithExcluder(ev.NewExcluder(dir).WithFiles(excludedFile))
+	e.Subscribe(w)
+	e.Start(t.Context())
+
+	if err := os.WriteFile(excludedFile, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write a non-excluded file as a positive control, then verify
+	// no event from the excluded file slipped through.
+	if err := os.WriteFile(watchedFile, []byte("y"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	awaitEvent(t, ch)
+
+	time.Sleep(100 * time.Millisecond)
+	for {
+		select {
+		case e := <-ch:
+			if e.Path() == excludedFile {
+				t.Errorf("received event for excluded file: op=%s", e.Op())
+			}
+		default:
+			return
 		}
-	})
+	}
 }

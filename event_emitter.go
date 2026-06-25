@@ -1,4 +1,4 @@
-package eavesdrop
+package ev
 
 import (
 	"context"
@@ -9,31 +9,23 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/fatih/color"
 	"github.com/fsnotify/fsnotify"
 )
 
-type Event struct {
-	file fs.FileInfo
-}
-
+// EventEmitter watches a directory tree for file system events and dispatches
+// them to registered Subscribers. Add watchers via Subscribe and call Start to begin.
 type EventEmitter struct {
-	rootdir  string
-	subs     map[chan Event]struct{}
-	cache    map[string]fs.FileInfo
-	excluder Excluder
-	watcher  *fsnotify.Watcher
-	mu       sync.RWMutex
+	root        string
+	cache       map[string]fs.FileInfo
+	excluder    *Excluder
+	watcher     *fsnotify.Watcher
+	subscribers []Subscriber
+	mu          sync.RWMutex
 }
 
-type EventEmitterOption func(*EventEmitter)
-
-func WithGlobalExcluder(excluder Excluder) EventEmitterOption {
-	return func(ee *EventEmitter) { ee.excluder = excluder }
-}
-
-func NewEmitter(rootdir string, opts ...EventEmitterOption) *EventEmitter {
-	if rootdir == "" {
+// NewEmitter returns a new EventEmitter rooted at root. Panics if root is empty.
+func NewEmitter(root string) *EventEmitter {
+	if root == "" {
 		panic("root directory cannot be blank")
 	}
 
@@ -42,20 +34,16 @@ func NewEmitter(rootdir string, opts ...EventEmitterOption) *EventEmitter {
 		panic(err)
 	}
 
-	emitter := &EventEmitter{
-		rootdir: rootdir,
-		subs:    make(map[chan Event]struct{}),
+	return &EventEmitter{
+		root:    root,
 		cache:   make(map[string]fs.FileInfo),
 		watcher: watcher,
 	}
-
-	for _, opt := range opts {
-		opt(emitter)
-	}
-
-	return emitter
 }
 
+// Start begins watching the root directory tree and dispatching events to subscribers.
+// Newly created directories are watched automatically; removed directories are unwatched.
+// Stops when ctx is cancelled.
 func (e *EventEmitter) Start(ctx context.Context) {
 	go func() {
 		<-ctx.Done()
@@ -64,67 +52,57 @@ func (e *EventEmitter) Start(ctx context.Context) {
 		if err != nil {
 			slog.Error("EventManager.Run", slog.Any("error", err))
 		}
-
-		for ch := range e.subs {
-			close(ch)
-		}
 	}()
 
-	err := e.RecursiveWatch(e.rootdir)
+	err := e.RecursiveWatch(e.root)
 	if err != nil {
-		color.Red("failed to watch: %s", e.rootdir)
+		slog.Error("failed to watch", slog.String("dir", e.root))
 		return
 	}
 
 	go func() {
 		for {
 			select {
-			case event, ok := <-e.watcher.Events:
+			case fevent, ok := <-e.watcher.Events:
 				if !ok {
 					return
 				}
 
-				if event.Has(fsnotify.Chmod) {
-					continue
-				}
-
-				file, ok := e.cache[event.Name]
+				file, ok := e.cache[fevent.Name]
 				if !ok {
 					var err error
-					file, err = os.Stat(event.Name)
+					file, err = os.Stat(fevent.Name)
 					if err != nil {
-						color.Red("failed to read file: %s", event.Name)
+						// log nothing, this is noisy and usually as a result of temp files.
 						continue
 					}
-					e.cache[event.Name] = file
+					e.cache[fevent.Name] = file
 				}
 
-				if e.excluder != nil && e.excluder.ShouldIgnore(file) {
+				event := NewEvent(Op(fevent.Op), fevent.Name, file)
+
+				if e.excluder != nil && e.excluder.ShouldIgnore(event) {
 					continue
 				}
 
 				if file.IsDir() {
-					if event.Has(fsnotify.Create) || event.Has(fsnotify.Write) {
-						err := e.RecursiveWatch(event.Name)
+					if event.Has(CREATE) || event.Has(WRITE) {
+						err := e.RecursiveWatch(event.Path())
 						if err != nil {
-							color.Red("failed to watch recursively: %v", err)
-							continue
+							slog.Error("failed to watch recursively", slog.Any("error", err))
 						}
 					}
 
-					if event.Has(fsnotify.Remove) || event.Has(fsnotify.Rename) {
-						err := e.RecursiveUnwatch(event.Name)
+					if event.Has(REMOVE) || event.Has(RENAME) {
+						err := e.RecursiveUnwatch(event.Path())
 						if err != nil {
-							color.Red("failed to unwatch recursively: %v", err)
-							continue
+							slog.Error("failed to unwatch recursively", slog.Any("error", err))
 						}
-						color.Magenta("unwatched: %s", event.Name)
+						slog.Info("unwatched", slog.String("path", event.Path()))
 					}
-
-					continue
 				}
 
-				e.publish(Event{file: file})
+				e.publish(event)
 
 			case err, ok := <-e.watcher.Errors:
 				if !ok {
@@ -136,6 +114,8 @@ func (e *EventEmitter) Start(ctx context.Context) {
 	}()
 }
 
+// RecursiveWatch adds dir and all subdirectories to the watch list, populating the file cache.
+// Excluded directories (via WithExcluder) are skipped entirely.
 func (e *EventEmitter) RecursiveWatch(dir string) error {
 	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -152,21 +132,23 @@ func (e *EventEmitter) RecursiveWatch(dir string) error {
 			return nil
 		}
 
-		if e.excluder != nil && e.excluder.ShouldIgnore(file) {
+		if e.excluder != nil && e.excluder.ShouldIgnore(Event{path: path, info: file}) {
 			return fs.SkipDir
 		}
 
 		err = e.watcher.Add(path)
 		if err != nil {
-			color.Red("failed to watch: %s", path)
-		} else {
-			color.Magenta("watching: %s", path)
+			slog.Error("failed to watch", slog.String("path", path))
+			return nil
 		}
+
+		slog.Info("watching", slog.String("path", path))
 
 		return nil
 	})
 }
 
+// RecursiveUnwatch removes dir and all subdirectories from the watch list and clears them from the cache.
 func (e *EventEmitter) RecursiveUnwatch(dir string) error {
 	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -181,31 +163,34 @@ func (e *EventEmitter) RecursiveUnwatch(dir string) error {
 
 		err = e.watcher.Remove(path)
 		if err != nil && !errors.Is(err, fsnotify.ErrNonExistentWatch) {
-			color.Red("failed to unwatch: %s\nerror: %v", err)
+			slog.Error("failed to unwatch", slog.String("path", path), slog.Any("error", err))
 		}
 
 		return nil
 	})
 }
 
-func (e *EventEmitter) Subscribe() <-chan Event {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+// Subscriber is implemented by any type that can receive file system events from an EventEmitter.
+type Subscriber interface {
+	Handle(event Event)
+}
 
-	ch := make(chan Event)
-	e.subs[ch] = struct{}{}
-
-	return ch
+// Subscribe registers a Subscriber to receive events. Must be called before Start.
+func (e *EventEmitter) Subscribe(subscriber Subscriber) {
+	e.subscribers = append(e.subscribers, subscriber)
 }
 
 func (e *EventEmitter) publish(event Event) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
-	for ch := range e.subs {
-		select {
-		case ch <- event:
-		default:
-		}
+	for _, sub := range e.subscribers {
+		sub.Handle(event)
 	}
+}
+
+// WithExcluder attaches an Excluder that filters events and directories before they are watched or dispatched.
+func (e *EventEmitter) WithExcluder(excluder *Excluder) *EventEmitter {
+	e.excluder = excluder
+	return e
 }
