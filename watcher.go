@@ -1,168 +1,110 @@
-package eavesdrop
+package ev
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/fatih/color"
+	"github.com/dimmerz92/eavesdrop/internal/components"
 )
 
-const (
-	DefaultRefreshDelay  = 100 * time.Millisecond
-	DefaultDebounceDelay = 100 * time.Millisecond
-)
+// DefaultDebounceDelay is the default debounce delay in milliseconds applied to file change events.
+const DefaultDebounceDelay = 100
 
-type Watcher interface {
-	Watch(events <-chan Event)
-	RunJobs()
-}
+var watcherRegistry = map[string]struct{}{}
+var proxyMu sync.Mutex
+var proxy *components.Proxy
 
-type watcher struct {
+// Watcher is a profile that defines which file system events to respond to and how.
+// Add it to an EventEmitter to begin receiving events. Configure it with the With* builder methods.
+type Watcher struct {
 	ctx            context.Context
 	name           string
-	filetypes      Set[string]
-	dirs           Set[string]
-	files          Set[string]
-	tasks          []string
-	service        string
+	root           string
+	filetypes      components.Set[string]
+	dirs           components.Set[string]
+	files          components.Set[string]
+	onChange       func(Event)
 	triggerRefresh bool
 	refreshDelay   time.Duration
-	debouncer      Debouncer
-	excluder       Excluder
-	proxy          Proxy
-	shell          Shell
-	mu             *sync.Mutex
+	proxy          *components.Proxy
+	debouncer      *components.Debouncer
+	excluder       *Excluder
 }
 
-type WatcherOption func(*watcher)
-
-func WithWatchedFiletypes(filetypes ...string) WatcherOption {
-	return func(w *watcher) { w.filetypes = ToSet(filetypes...) }
-}
-
-func WithWatchedDirs(dirs ...string) WatcherOption {
-	return func(w *watcher) { w.dirs = ToSet(dirs...) }
-}
-
-func WithWatchedFiles(files ...string) WatcherOption {
-	return func(w *watcher) { w.files = ToSet(files...) }
-}
-
-func WithTasks(tasks ...string) WatcherOption {
-	return func(w *watcher) { w.tasks = tasks }
-}
-
-func WithService(service string) WatcherOption {
-	return func(w *watcher) { w.service = service }
-}
-
-func WithRefreshDelay(d time.Duration) WatcherOption {
-	return func(w *watcher) { w.refreshDelay = d }
-}
-
-func WithTriggerRefresh(b bool) WatcherOption {
-	return func(w *watcher) { w.triggerRefresh = b }
-}
-
-func WithDebouncer(debouncer Debouncer) WatcherOption {
-	return func(w *watcher) { w.debouncer = debouncer }
-}
-
-func WithWatcherExcluder(excluder Excluder) WatcherOption {
-	return func(w *watcher) { w.excluder = excluder }
-}
-
-func WithProxy(proxy Proxy) WatcherOption {
-	return func(w *watcher) { w.proxy = proxy }
-}
-
-func WithShell(shell Shell) WatcherOption {
-	return func(w *watcher) { w.shell = shell }
-}
-
-func NewWatcher(ctx context.Context, name string, mu *sync.Mutex, opts ...WatcherOption) *watcher {
-	if name = strings.TrimSpace(name); name == "" {
-		panic("watcher requires a name")
+// NewWatcher returns a new Watcher profile rooted at root. name must be unique across all watchers
+// in the process. If root is empty, it defaults to the current directory.
+// Panics if name is empty or already registered.
+func NewWatcher(ctx context.Context, name, root string) *Watcher {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		panic("watcher requires a non empty name")
 	}
 
-	watcher := &watcher{
-		ctx:          ctx,
-		name:         name,
-		refreshDelay: DefaultRefreshDelay,
-		mu:           mu,
+	if _, ok := watcherRegistry[name]; ok {
+		panic("watcher requires a unique name: " + name)
 	}
 
-	for _, opt := range opts {
-		opt(watcher)
+	watcherRegistry[name] = struct{}{}
+
+	if strings.TrimSpace(root) == "" {
+		root = "."
 	}
 
-	if watcher.filetypes == nil {
-		watcher.filetypes = Set[string]{}
+	return &Watcher{
+		ctx:       ctx,
+		name:      name,
+		root:      root,
+		filetypes: make(components.Set[string]),
+		dirs:      make(components.Set[string]),
+		files:     make(components.Set[string]),
+		onChange:  func(_ Event) { slog.Warn("default handler", slog.String("watcher", name)) },
+		debouncer: components.NewDebouncer(DefaultDebounceDelay),
 	}
-
-	if watcher.dirs == nil {
-		watcher.dirs = Set[string]{}
-	}
-
-	if watcher.files == nil {
-		watcher.files = Set[string]{}
-	}
-
-	if len(watcher.filetypes)+len(watcher.dirs)+len(watcher.files) == 0 {
-		panic(fmt.Sprintf("watcher %s has nothing to watch", watcher.name))
-	}
-
-	if len(watcher.tasks) == 0 && watcher.service == "" {
-		panic(fmt.Sprintf("watcher %s has no tasks or servies to run", watcher.name))
-	}
-
-	if watcher.debouncer == nil {
-		watcher.debouncer = NewDebouncer(DefaultDebounceDelay)
-	}
-
-	if watcher.shell == nil {
-		watcher.shell = NewShell(ctx)
-	}
-
-	return watcher
 }
 
-func (w *watcher) Watch(events <-chan Event) {
-	for {
-		select {
-		case <-w.ctx.Done():
-			return
+// Handle processes an event, calling the onChange handler if the event is watched and not excluded.
+// Called by the EventEmitter; not intended for direct use.
+func (w *Watcher) Handle(event Event) {
+	if !w.Watched(event) || w.excluder.ShouldIgnore(event) {
+		return
+	}
 
-		case event := <-events:
-			if w.watched(event) && !w.excluder.ShouldIgnore(event.file) {
-				color.Green("%s changed", event.file.Name())
-				w.debouncer.Do(func() {
-					w.RunJobs()
-					if w.triggerRefresh && w.proxy != nil {
-						time.Sleep(w.refreshDelay)
-						w.proxy.RefreshBrowser()
-					}
-				})
-			}
+	slog.Info("file changed", slog.String("watcher", w.name), slog.String("path", event.Path()))
+	w.debouncer.Do(func() {
+		w.onChange(event)
+		if w.triggerRefresh {
+			time.Sleep(w.refreshDelay)
+			w.proxy.RefreshBrowser()
 		}
-	}
+	})
 }
 
-func (w *watcher) watched(event Event) bool {
-	if _, hasExt := w.filetypes[filepath.Ext(event.file.Name())]; hasExt {
+// Watched reports whether the event matches this watcher's root, filetypes, files, or dirs.
+// Events with nil Info are always considered watched (e.g. manual triggers).
+func (w *Watcher) Watched(event Event) bool {
+	if event.Info() == nil {
+		return true // for testing or manual triggering
+	}
+
+	rel, err := filepath.Rel(w.root, event.Path())
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return false
+	}
+
+	if _, hasExt := w.filetypes[filepath.Ext(event.Path())]; hasExt {
 		return true
 	}
 
-	if _, watchedFile := w.files[event.file.Name()]; watchedFile {
+	if _, watchedFile := w.files[rel]; watchedFile {
 		return true
 	}
 
 	for dir := range w.dirs {
-		if IsRelative(dir, event.file.Name()) {
+		if components.IsRelative(dir, rel) {
 			return true
 		}
 	}
@@ -170,25 +112,72 @@ func (w *watcher) watched(event Event) bool {
 	return false
 }
 
-func (w *watcher) RunJobs() {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+// Trigger manually invokes the onChange handler with an empty event, bypassing filters and debounce.
+func (w *Watcher) Trigger() {
+	w.onChange(Event{})
+}
 
-	if err := w.shell.KillProcessGroup(); err != nil {
-		color.Red("%s: failed to kill previous service: %v", w.name, err)
+// WithFiletypes adds file extensions to watch (e.g. ".go", ".html").
+func (w *Watcher) WithFiletypes(filetypes ...string) *Watcher {
+	for _, ftype := range filetypes {
+		w.filetypes[ftype] = struct{}{}
 	}
+	return w
+}
 
-	for _, task := range w.tasks {
-		fmt.Printf("%s: running task: %s\n", color.CyanString(w.name), task)
-		if err := w.shell.ExecAndWait(task); err != nil {
-			color.Red("%s: failed to run task: %v", w.name, err)
+// WithDirs adds directories to watch, relative to the watcher root. Events from files inside
+// these directories are matched; the directory path itself is not.
+func (w *Watcher) WithDirs(dirs ...string) *Watcher {
+	for _, dir := range dirs {
+		w.dirs[dir] = struct{}{}
+	}
+	return w
+}
+
+// WithFiles adds specific file paths to watch, relative to the watcher root.
+func (w *Watcher) WithFiles(files ...string) *Watcher {
+	for _, file := range files {
+		w.files[file] = struct{}{}
+	}
+	return w
+}
+
+// WithOnChange sets the handler called when a matching event is received.
+func (w *Watcher) WithOnChange(fn func(Event)) *Watcher {
+	w.onChange = fn
+	return w
+}
+
+// WithProxy attaches a reverse proxy that injects a live-reload script into HTML responses.
+// The proxy listens on proxyPort and forwards to the app on appPort. Only one proxy is
+// created per process; subsequent calls reuse it. refreshDelayMs is the delay before
+// triggering a browser refresh after onChange fires.
+func (w *Watcher) WithProxy(appPort, proxyPort uint16, refreshDelayMs uint) *Watcher {
+	w.triggerRefresh = true
+	w.refreshDelay = w.refreshDelay * time.Millisecond
+
+	proxyMu.Lock()
+	defer proxyMu.Unlock()
+
+	if proxy == nil {
+		var err error
+		proxy, err = components.NewProxy(w.ctx, appPort, proxyPort)
+		if err != nil {
+			panic(err)
 		}
+		w.proxy = proxy
 	}
+	return w
+}
 
-	if w.service != "" {
-		fmt.Printf("%s: running service: %s\n", color.BlueString(w.name), w.service)
-		if err := w.shell.ExecAndReturn(w.service); err != nil {
-			color.Red("%s: failed to run service: %v", w.name, err)
-		}
-	}
+// WithDebounceDelay overrides the default debounce delay (DefaultDebounceDelay) in milliseconds.
+func (w *Watcher) WithDebounceDelay(delayMs uint) *Watcher {
+	w.debouncer.UpdateDelay(delayMs)
+	return w
+}
+
+// WithExcluder attaches an Excluder that filters out events before they reach the onChange handler.
+func (w *Watcher) WithExcluder(excluder *Excluder) *Watcher {
+	w.excluder = excluder
+	return w
 }
