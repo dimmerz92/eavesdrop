@@ -1,6 +1,6 @@
 //go:build windows
 
-package eavesdrop
+package ev
 
 import (
 	"errors"
@@ -14,6 +14,7 @@ import (
 
 const PROCESS_NOT_FOUND = 128
 
+// DetectShell checks if powershell exists otherwise falls back to cmd.
 func DetectShell() string {
 	prefix := "powershell.exe"
 
@@ -25,6 +26,8 @@ func DetectShell() string {
 	return prefix
 }
 
+// ShellFlag returns -Command if the detected shell is powershell, otherwise
+// /C is returned.
 func ShellFlag(prefix string) string {
 	if prefix == "powershell.exe" {
 		return "-Command"
@@ -32,21 +35,26 @@ func ShellFlag(prefix string) string {
 	return "/C"
 }
 
-func (s *shell) ToProcessGroup() error {
+// ToProcessGroup sets the shell with a flag to spawn a new process group.
+func (s *Shell) ToProcessGroup() error {
 	if s.cmd == nil {
 		return fmt.Errorf("nil shell")
 	}
 
-	s.cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP}
+	s.cmd.SysProcAttr = &syscall.SysProcAttr{
+		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
+	}
 
 	return nil
 }
 
-func (s *shell) TerminateProcessGroup() error {
+// TerminateProcessGroup sends a CTRL_BREAK_EVENT to the shell.
+func (s *Shell) TerminateProcessGroup() error {
 	return windows.GenerateConsoleCtrlEvent(windows.CTRL_BREAK_EVENT, uint32(s.pid))
 }
 
-func (s *shell) KillProcessGroup() error {
+// KillProcessGroup uses taskkill to kill the underlying process group.
+func (s *Shell) KillProcessGroup() error {
 	pid := strconv.Itoa(s.pid)
 	cmd := exec.Command("taskkill", "/F", "/T", "/PID", pid)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}

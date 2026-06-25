@@ -1,4 +1,4 @@
-package eavesdrop_test
+package ev_test
 
 import (
 	"bytes"
@@ -11,15 +11,12 @@ import (
 )
 
 func TestShell(t *testing.T) {
-	newShell := func() (eavesdrop.Shell, *os.File, *os.File, func()) {
+	newShell := func() (*ev.Shell, *os.File, *os.File, func()) {
 		stdout := os.Stdout
 		r, w, _ := os.Pipe()
 		os.Stdout = w
 
-		shell := eavesdrop.NewShell(t.Context(),
-			eavesdrop.WithTaskTimeout(50*time.Millisecond),
-			eavesdrop.WithServiceTimeout(50*time.Millisecond),
-		)
+		shell := ev.NewShell(t.Context(), 50, 50)
 
 		return shell, r, w, func() { os.Stdout = stdout }
 	}
@@ -69,10 +66,7 @@ func TestShell(t *testing.T) {
 				service = ""
 			}
 
-			shell := eavesdrop.NewShell(t.Context(),
-				eavesdrop.WithTaskTimeout(50*time.Second),
-				eavesdrop.WithServiceTimeout(50*time.Millisecond),
-			)
+			shell := ev.NewShell(t.Context(), 50, 50)
 
 			err := shell.ExecAndReturn(service)
 			if err != nil {
@@ -93,10 +87,7 @@ func TestShell(t *testing.T) {
 				service = ""
 			}
 
-			shell := eavesdrop.NewShell(t.Context(),
-				eavesdrop.WithTaskTimeout(50*time.Second),
-				eavesdrop.WithServiceTimeout(50*time.Millisecond),
-			)
+			shell := ev.NewShell(t.Context(), 50, 50)
 
 			err := shell.ExecAndReturn(service)
 			if err != nil {
@@ -117,10 +108,7 @@ func TestShell(t *testing.T) {
 				t.Skip("I have no idea how to test this on windows, lmao")
 			}
 
-			shell := eavesdrop.NewShell(t.Context(),
-				eavesdrop.WithTaskTimeout(50*time.Millisecond),
-				eavesdrop.WithServiceTimeout(50*time.Millisecond),
-			)
+			shell := ev.NewShell(t.Context(), 50, 50)
 
 			err := shell.ExecAndReturn(service)
 			if err != nil {

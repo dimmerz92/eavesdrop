@@ -1,47 +1,44 @@
 //go:build !windows
 
-package eavesdrop
+package ev
 
 import (
 	"errors"
 	"fmt"
 	"os"
-	"slices"
 	"syscall"
 )
 
-// not exhaustive, covers the vast majority.
-var (
-	defaultShell = "/bin/sh"
-	knownShells  = []string{"/bin/bash", "/bin/zsh", "/bin/tcsh", "/bin/dash", "/bin/fish"}
-)
+var defaultShell = "/bin/sh"
 
+// DetectShell attempts to determine the shell environment from the $SHELL
+// environment variable, otherwise fallse back to /bin/sh
 func DetectShell() string {
 	prefix := os.Getenv("SHELL")
-
-	if slices.Contains(knownShells, prefix) {
-		return prefix
+	if prefix == "" {
+		prefix = defaultShell
 	}
 
-	return defaultShell
+	return prefix
 }
 
+// ShellFlag always returns -c.
 func ShellFlag(prefix string) string {
 	_ = prefix
 	return "-c"
 }
 
-func (s *shell) ToProcessGroup() error {
+// ToProcessGroup sets the shell with a flag to spawn a new process group.
+func (s *Shell) ToProcessGroup() error {
 	if s.cmd == nil {
 		return fmt.Errorf("nil shell")
 	}
-
 	s.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-
 	return nil
 }
 
-func (s *shell) SignalProcessGroup(signal syscall.Signal) error {
+// SignalProcessGroup sends the given signal to the shell.
+func (s *Shell) SignalProcessGroup(signal syscall.Signal) error {
 	if s.cmd == nil || s.cmd.Process == nil {
 		return nil
 	}
@@ -57,10 +54,12 @@ func (s *shell) SignalProcessGroup(signal syscall.Signal) error {
 	return syscall.Kill(-pgid, signal)
 }
 
-func (s *shell) TerminateProcessGroup() error {
+// TerminateProcessGroup sends a SIGTERM to the shell.
+func (s *Shell) TerminateProcessGroup() error {
 	return s.SignalProcessGroup(syscall.SIGTERM)
 }
 
-func (s *shell) KillProcessGroup() error {
+// KillProcessGroup sends a SIGKILL to the shell.
+func (s *Shell) KillProcessGroup() error {
 	return s.SignalProcessGroup(syscall.SIGKILL)
 }

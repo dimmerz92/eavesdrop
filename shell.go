@@ -1,4 +1,4 @@
-package eavesdrop
+package ev
 
 import (
 	"context"
@@ -10,20 +10,7 @@ import (
 	"time"
 )
 
-const (
-	DefaultTaskRunTimeout         = 2 * time.Second
-	DefaultServiceShutdownTimeout = 5 * time.Second
-)
-
-type Shell interface {
-	ExecAndWait(task string) error
-	ExecAndReturn(service string) error
-	TerminateProcessGroup() error
-	KillProcessGroup() error
-	Stop() error
-}
-
-type shell struct {
+type Shell struct {
 	ctx            context.Context
 	cmd            *exec.Cmd
 	pid            int
@@ -33,42 +20,23 @@ type shell struct {
 	serviceTimeout time.Duration
 }
 
-type ShellOption func(*shell)
-
-func WithTaskTimeout(d time.Duration) ShellOption {
-	return func(s *shell) {
-		if d > 0 {
-			s.taskTimeout = d
-		}
-	}
-}
-
-func WithServiceTimeout(d time.Duration) ShellOption {
-	return func(s *shell) {
-		if d > 0 {
-			s.serviceTimeout = d
-		}
-	}
-}
-
-func NewShell(ctx context.Context, opts ...ShellOption) *shell {
+// NewShell returns a Shell that invokes commands via the detected system shell
+// (e.g. /bin/sh on Unix, powershell.exe or cmd.exe on Windows).
+func NewShell(ctx context.Context, taskTimeoutMs, serviceTimeoutMs uint) *Shell {
 	prefix := DetectShell()
-	shell := &shell{
+	return &Shell{
 		ctx:            ctx,
 		prefix:         prefix,
 		flag:           ShellFlag(prefix),
-		taskTimeout:    DefaultTaskRunTimeout,
-		serviceTimeout: DefaultServiceShutdownTimeout,
+		taskTimeout:    time.Duration(taskTimeoutMs) * time.Millisecond,
+		serviceTimeout: time.Duration(serviceTimeoutMs) * (time.Millisecond),
 	}
 
-	for _, opt := range opts {
-		opt(shell)
-	}
-
-	return shell
 }
 
-func (s *shell) ExecAndWait(task string) error {
+// ExecAndWait runs task and blocks until it finishes or the task timeout
+// elapses.
+func (s *Shell) ExecAndWait(task string) error {
 	if strings.TrimSpace(task) == "" {
 		return fmt.Errorf("cannot run blank task")
 	}
@@ -101,7 +69,9 @@ func (s *shell) ExecAndWait(task string) error {
 	return s.cmd.Wait()
 }
 
-func (s *shell) ExecAndReturn(service string) error {
+// ExecAndReturn starts service as a background process and returns without
+// waiting.
+func (s *Shell) ExecAndReturn(service string) error {
 	if strings.TrimSpace(service) == "" {
 		return fmt.Errorf("cannot run blank task")
 	}
@@ -122,7 +92,9 @@ func (s *shell) ExecAndReturn(service string) error {
 	return nil
 }
 
-func (s *shell) Stop() error {
+// Stop gracefully shuts down the running service. Sends SIGTERM and waits up
+// to the service timeout before sending SIGKILL.
+func (s *Shell) Stop() error {
 	if s.cmd == nil || s.cmd.Process == nil {
 		return nil
 	}
