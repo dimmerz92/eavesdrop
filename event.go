@@ -52,9 +52,9 @@ func (e Event) Has(op Op) bool { return (e.op & op) > 0 }
 // Op returns the file operation that emitted the event.
 func (e Event) Op() Op { return e.op }
 
-// Path returns the absolute file path of the affected file or directory.
+// Path returns the file path relative to the root of the emitter.
 func (e Event) Path() string { return e.path }
 
-// Info returns the file info at the time the event was emitted. May be nil if
-// the event was manually triggered.
+// Info returns the file info at the time the event was emitted.
+// May be nil if the event was manually triggered.
 func (e Event) Info() fs.FileInfo { return e.info }
