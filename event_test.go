@@ -27,7 +27,7 @@ func TestOp_String(t *testing.T) {
 		{ev.REMOVE, "REMOVE"},
 		{ev.RENAME, "RENAME"},
 		{ev.WRITE, "WRITE"},
-		{ev.Op(0), ""},
+		{ev.Op(0), "UNKNOWN"},
 	}
 
 	for _, test := range tests {

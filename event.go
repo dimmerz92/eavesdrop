@@ -2,6 +2,7 @@ package ev
 
 import (
 	"io/fs"
+	"strings"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -9,29 +10,47 @@ import (
 type Op uint32
 
 const (
-	CHMOD  Op = Op(fsnotify.Chmod)
-	CREATE Op = Op(fsnotify.Create)
-	REMOVE Op = Op(fsnotify.Remove)
-	RENAME Op = Op(fsnotify.Rename)
-	WRITE  Op = Op(fsnotify.Write)
+	UNKNOWN Op = 0
+	CHMOD   Op = Op(fsnotify.Chmod)
+	CREATE  Op = Op(fsnotify.Create)
+	REMOVE  Op = Op(fsnotify.Remove)
+	RENAME  Op = Op(fsnotify.Rename)
+	WRITE   Op = Op(fsnotify.Write)
 )
+
+func OpFromString(op string) Op {
+	switch strings.ToUpper(op) {
+	case "CHMOD":
+		return CHMOD
+	case "CREATE":
+		return CREATE
+	case "REMOVE":
+		return REMOVE
+	case "RENAME":
+		return RENAME
+	case "WRITE":
+		return WRITE
+	default:
+		return 0
+	}
+}
 
 // String returns the file operation as a string.
 func (o Op) String() string {
-	var op string
 	switch o {
 	case CHMOD:
-		op = "CHMOD"
+		return "CHMOD"
 	case CREATE:
-		op = "CREATE"
+		return "CREATE"
 	case REMOVE:
-		op = "REMOVE"
+		return "REMOVE"
 	case RENAME:
-		op = "RENAME"
+		return "RENAME"
 	case WRITE:
-		op = "WRITE"
+		return "WRITE"
+	default:
+		return "UNKNOWN"
 	}
-	return op
 }
 
 // Event represents a file system change notification.

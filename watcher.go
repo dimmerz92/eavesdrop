@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/dimmerz92/eavesdrop/internal/components"
@@ -15,13 +14,14 @@ import (
 const DefaultDebounceDelay = 100
 
 var watcherRegistry = map[string]struct{}{}
-var proxyMu sync.Mutex
-var proxy *components.Proxy
+
+type Proxy interface {
+	RefreshBrowser()
+}
 
 // Watcher is a profile that defines which file system events to respond to and how.
 // Add it to an EventEmitter to begin receiving events. Configure it with the With* builder methods.
 type Watcher struct {
-	ctx            context.Context
 	name           string
 	root           string
 	filetypes      components.Set[string]
@@ -30,7 +30,7 @@ type Watcher struct {
 	onChange       func(Event)
 	triggerRefresh bool
 	refreshDelay   time.Duration
-	proxy          *components.Proxy
+	proxy          Proxy
 	debouncer      *components.Debouncer
 	excluder       *Excluder
 }
@@ -55,7 +55,6 @@ func NewWatcher(ctx context.Context, name, root string) *Watcher {
 	}
 
 	return &Watcher{
-		ctx:       ctx,
 		name:      name,
 		root:      root,
 		filetypes: make(components.Set[string]),
@@ -69,7 +68,10 @@ func NewWatcher(ctx context.Context, name, root string) *Watcher {
 // Handle processes an event, calling the onChange handler if the event is watched and not excluded.
 // Called by the EventEmitter; not intended for direct use.
 func (w *Watcher) Handle(event Event) {
-	if !w.Watched(event) || w.excluder.ShouldIgnore(event) {
+	if !w.Watched(event) {
+		return
+	}
+	if w.excluder != nil && w.excluder.ShouldIgnore(event) {
 		return
 	}
 
@@ -148,25 +150,15 @@ func (w *Watcher) WithOnChange(fn func(Event)) *Watcher {
 	return w
 }
 
-// WithProxy attaches a reverse proxy that injects a live-reload script into HTML responses.
-// The proxy listens on proxyPort and forwards to the app on appPort. Only one proxy is
-// created per process; subsequent calls reuse it. refreshDelayMs is the delay before
-// triggering a browser refresh after onChange fires.
-func (w *Watcher) WithProxy(appPort, proxyPort uint16, refreshDelayMs uint) *Watcher {
-	w.triggerRefresh = true
-	w.refreshDelay = w.refreshDelay * time.Millisecond
-
-	proxyMu.Lock()
-	defer proxyMu.Unlock()
-
+// WithProxy configures a Proxy to trigger a browser refresh after each onChange call.
+// refreshDelayMs is the delay in milliseconds to wait before refreshing. A nil proxy is a no-op.
+func (w *Watcher) WithProxy(proxy Proxy, refreshDelayMs uint) *Watcher {
 	if proxy == nil {
-		var err error
-		proxy, err = components.NewProxy(w.ctx, appPort, proxyPort)
-		if err != nil {
-			panic(err)
-		}
-		w.proxy = proxy
+		return w
 	}
+	w.triggerRefresh = true
+	w.refreshDelay = time.Duration(refreshDelayMs) * time.Millisecond
+	w.proxy = proxy
 	return w
 }
 
