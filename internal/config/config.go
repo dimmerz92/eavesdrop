@@ -24,6 +24,7 @@ type Config struct {
 }
 
 type ExcluderConfig struct {
+	Ops   []string `json:"ops" toml:"ops" yaml:"ops"`
 	Dirs  []string `json:"dirs" toml:"dirs" yaml:"dirs"`
 	Files []string `json:"files" toml:"files" yaml:"files"`
 	Regex []string `json:"regex" toml:"regex" yaml:"regex"`
@@ -59,6 +60,7 @@ func DefaultConfig() Config {
 	return Config{
 		RootDir: ".",
 		GlobalExclude: ExcluderConfig{
+			Ops:   []string{"CHMOD"},
 			Dirs:  []string{"data", "dist", "node_modules", "tmp"},
 			Files: []string{},
 			Regex: []string{
@@ -72,6 +74,7 @@ func DefaultConfig() Config {
 			Dirs:      []string{},
 			Files:     []string{},
 			Exclude: ExcluderConfig{
+				Ops:   []string{},
 				Dirs:  []string{},
 				Files: []string{},
 				Regex: []string{},

@@ -1,4 +1,4 @@
-package internal
+package cli
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/dimmerz92/eavesdrop"
+	"github.com/dimmerz92/eavesdrop/internal/config"
 )
 
 func RunEavesdrop(ctx context.Context) {
@@ -17,24 +17,25 @@ func RunEavesdrop(ctx context.Context) {
 	path := flag.String("config", "eavesdrop.json", "the path to the config file")
 	flag.Parse()
 
-	config, err := GetConfig(*path)
+	config, err := config.GetConfig(*path)
+	if err != nil {
+		panic(err)
+	}
+
+	proxy, err := ConstructProxy(ctx, config.Proxy)
 	if err != nil {
 		panic(err)
 	}
 
 	emitter := ConstructEventEmitter(ctx, config)
-	proxy := ConstructProxy(ctx, config.Proxy)
-
-	emitter.Start(ctx)
 
 	var mu sync.Mutex
-	var watchers []eavesdrop.Watcher
 	for _, watcherConfig := range config.Watchers {
 		watcher := ConstructWatcher(ctx, config.RootDir, &mu, proxy, watcherConfig)
+		emitter.Subscribe(watcher)
 		if watcherConfig.RunOnStart {
-			watcher.RunJobs()
+			watcher.Trigger()
 		}
-		watchers = append(watchers, watcher)
 	}
 
 	if config.Tmp {
@@ -53,9 +54,7 @@ func RunEavesdrop(ctx context.Context) {
 		}
 	}
 
-	for _, watcher := range watchers {
-		go watcher.Watch(emitter.Subscribe())
-	}
+	emitter.Start(ctx)
 
 	<-ctx.Done()
 }
