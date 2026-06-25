@@ -99,8 +99,9 @@ func (s *Shell) Stop() error {
 		return nil
 	}
 
+	cmd := s.cmd
 	done := make(chan error, 1)
-	go func() { done <- s.cmd.Wait() }()
+	go func() { done <- cmd.Wait() }()
 
 	s.TerminateProcessGroup()
 
