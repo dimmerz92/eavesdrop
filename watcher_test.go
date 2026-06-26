@@ -1,7 +1,6 @@
 package ev_test
 
 import (
-	"context"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -26,7 +25,7 @@ func TestNewWatcher(t *testing.T) {
 				t.Error("expected panic on empty name")
 			}
 		}()
-		ev.NewWatcher(context.Background(), "", ".")
+		ev.NewWatcher("", ".")
 	})
 
 	t.Run("PanicsOnWhitespaceName", func(t *testing.T) {
@@ -35,21 +34,21 @@ func TestNewWatcher(t *testing.T) {
 				t.Error("expected panic on whitespace-only name")
 			}
 		}()
-		ev.NewWatcher(context.Background(), "   ", ".")
+		ev.NewWatcher("   ", ".")
 	})
 
 	t.Run("PanicsOnDuplicateName", func(t *testing.T) {
-		ev.NewWatcher(context.Background(), t.Name(), ".")
+		ev.NewWatcher(t.Name(), ".")
 		defer func() {
 			if r := recover(); r == nil {
 				t.Error("expected panic on duplicate name")
 			}
 		}()
-		ev.NewWatcher(context.Background(), t.Name(), ".")
+		ev.NewWatcher(t.Name(), ".")
 	})
 
 	t.Run("ReturnsNonNil", func(t *testing.T) {
-		w := ev.NewWatcher(context.Background(), t.Name(), ".")
+		w := ev.NewWatcher(t.Name(), ".")
 		if w == nil {
 			t.Error("NewWatcher() returned nil")
 		}
@@ -121,7 +120,7 @@ func TestWatcher_Watched(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			w := ev.NewWatcher(context.Background(), t.Name(), testRoot)
+			w := ev.NewWatcher(t.Name(), testRoot)
 			w = test.setup(w)
 			if got := w.Watched(test.event); got != test.expected {
 				t.Errorf("Watched() = %v, expected %v", got, test.expected)
@@ -191,7 +190,7 @@ func TestWatcher_Handle(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var count atomic.Int32
-			w := ev.NewWatcher(context.Background(), t.Name(), testRoot)
+			w := ev.NewWatcher(t.Name(), testRoot)
 			w = test.setup(w)
 			w.WithOnChange(func(_ ev.Event) { count.Add(1) })
 
@@ -210,7 +209,7 @@ func TestWatcher_Handle(t *testing.T) {
 
 func TestWatcher_Trigger(t *testing.T) {
 	var called atomic.Bool
-	w := ev.NewWatcher(context.Background(), t.Name(), ".")
+	w := ev.NewWatcher(t.Name(), ".")
 	w.WithOnChange(func(_ ev.Event) { called.Store(true) })
 
 	w.Trigger()
@@ -221,7 +220,7 @@ func TestWatcher_Trigger(t *testing.T) {
 }
 
 func TestWatcher_Builders_Chainable(t *testing.T) {
-	w := ev.NewWatcher(context.Background(), t.Name(), ".")
+	w := ev.NewWatcher(t.Name(), ".")
 	tests := []struct {
 		name string
 		got  *ev.Watcher

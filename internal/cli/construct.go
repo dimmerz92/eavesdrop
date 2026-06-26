@@ -53,7 +53,7 @@ func ConstructWatcher(
 		ops = append(ops, ev.OpFromString(op))
 	}
 
-	return ev.NewWatcher(ctx, config.Name, root).
+	return ev.NewWatcher(config.Name, root).
 		WithFiletypes(config.Filetypes...).
 		WithDirs(config.Dirs...).
 		WithFiles(config.Files...).

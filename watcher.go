@@ -1,7 +1,6 @@
 package ev
 
 import (
-	"context"
 	"log/slog"
 	"path/filepath"
 	"strings"
@@ -38,7 +37,7 @@ type Watcher struct {
 // NewWatcher returns a new Watcher profile rooted at root. name must be unique across all watchers
 // in the process. If root is empty, it defaults to the current directory.
 // Panics if name is empty or already registered.
-func NewWatcher(ctx context.Context, name, root string) *Watcher {
+func NewWatcher(name, root string) *Watcher {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		panic("watcher requires a non empty name")

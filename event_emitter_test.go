@@ -14,7 +14,7 @@ const eventTimeout = 2 * time.Second
 func testWatcher(t *testing.T, dir string) (*ev.Watcher, <-chan ev.Event) {
 	t.Helper()
 	ch := make(chan ev.Event, 16)
-	w := ev.NewWatcher(t.Context(), t.Name(), dir).
+	w := ev.NewWatcher(t.Name(), dir).
 		WithFiletypes(".go").
 		WithDebounceDelay(debounceDelay).
 		WithExcluder(ev.NewExcluder(dir)).
