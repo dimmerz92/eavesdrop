@@ -1,6 +1,7 @@
 package ev
 
 import (
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -34,14 +35,16 @@ func (e *Excluder) ShouldIgnore(event Event) bool {
 		return true
 	}
 
+	cleanPath := filepath.Clean(event.Path())
+
 	for dir := range e.dirs {
-		if event.Path() == dir || components.IsRelative(dir, event.Path()) {
+		if cleanPath == dir || components.IsRelative(dir, cleanPath) {
 			return true
 		}
 	}
 
 	if event.info == nil || !event.info.IsDir() {
-		if _, ok := e.files[event.Path()]; ok {
+		if _, ok := e.files[cleanPath]; ok {
 			return true
 		}
 	}
@@ -67,7 +70,7 @@ func (e *Excluder) WithOps(ops ...Op) *Excluder {
 // Only the exact specified path and its contents are excluded.
 func (e *Excluder) WithDirs(dirs ...string) *Excluder {
 	for _, dir := range dirs {
-		e.dirs[dir] = struct{}{}
+		e.dirs[filepath.Clean(dir)] = struct{}{}
 	}
 	return e
 }
@@ -76,7 +79,7 @@ func (e *Excluder) WithDirs(dirs ...string) *Excluder {
 // Only the exact path is excluded.
 func (e *Excluder) WithFiles(files ...string) *Excluder {
 	for _, file := range files {
-		e.files[file] = struct{}{}
+		e.files[filepath.Clean(file)] = struct{}{}
 	}
 	return e
 }
