@@ -8,7 +8,8 @@ import (
 	"os/signal"
 	"strings"
 
-	"github.com/dimmerz92/eavesdrop/internal"
+	"github.com/dimmerz92/eavesdrop/internal/cli"
+	"github.com/dimmerz92/eavesdrop/internal/config"
 )
 
 func main() {
@@ -16,12 +17,12 @@ func main() {
 	defer cancel()
 
 	if len(os.Args) == 1 {
-		internal.RunEavesdrop(ctx)
+		cli.RunEavesdrop(ctx)
 		return
 	}
 
 	if os.Args[1] == "help" {
-		println(internal.Help)
+		println(cli.Help)
 		return
 	}
 
@@ -35,7 +36,7 @@ func main() {
 			panic(err)
 		}
 
-		err = internal.GenerateConfig(*out, *ext)
+		err = config.GenerateConfig(*out, *ext)
 		if err != nil {
 			panic(err)
 		}
@@ -43,7 +44,7 @@ func main() {
 	}
 
 	if strings.HasPrefix(os.Args[1], "-") {
-		internal.RunEavesdrop(ctx)
+		cli.RunEavesdrop(ctx)
 		return
 	}
 
