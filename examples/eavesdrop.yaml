@@ -1,0 +1,46 @@
+root_dir: .
+tmp: false
+cleanup_tmp: false
+
+global_exclude:
+  ops:
+    - CHMOD
+  dirs:
+    - data
+    - dist
+    - node_modules
+    - tmp
+  files: []
+  regex:
+    - ^\.?(\/?|\\?)(?:\w+(\/|\\))*(\.\w+)$
+    - ^.+\.sqlite$
+    - ^.+\.wal$
+    - ^.+\.shm$
+
+  watchers:
+    - name: go watcher
+      filetypes:
+        - .go
+      dirs: []
+      files: []
+      run_on_start: true
+      trigger_refresh: false
+      refresh_delay: 100
+      exclude:
+        ops: []
+        dirs: []
+        files: []
+        regex:
+          - _test\.go
+      shell:
+        tasks:
+          - go run main.go
+        task_timeout: 2000
+        service: ""
+        service_shutdown_timeout: 5000
+        debounce_delay: 100
+
+  proxy:
+    enabled: false
+    app_port: 8000
+    proxy_port: 8001
