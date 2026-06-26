@@ -29,6 +29,8 @@ func RunEavesdrop(ctx context.Context) {
 
 	emitter := ConstructEventEmitter(ctx, config)
 
+	emitter.Start(ctx)
+
 	var mu sync.Mutex
 	for _, watcherConfig := range config.Watchers {
 		watcher := ConstructWatcher(ctx, config.RootDir, &mu, proxy, watcherConfig)
@@ -53,8 +55,6 @@ func RunEavesdrop(ctx context.Context) {
 			}()
 		}
 	}
-
-	emitter.Start(ctx)
 
 	<-ctx.Done()
 }
