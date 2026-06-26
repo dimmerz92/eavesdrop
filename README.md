@@ -41,7 +41,7 @@ Eavesdrop can be used in two ways:
 ### Installation
 
 ```bash
-go install github.com/dimmerz92/eavesdrop/cmd/eavesdrop@latest
+go install github.com/dimmerz92/eavesdrop/v2/cmd/eavesdrop@latest
 ```
 
 ### Create a config
@@ -129,10 +129,14 @@ When the proxy is enabled, browse to `http://localhost:<proxy_port>` instead of 
 
 ## Library Usage
 
+```bash
+go get github.com/dimmerz92/eavesdrop/v2@latest
+```
+
 The import path ends in `eavesdrop` but the package identifier is `ev`:
 
 ```go
-import ev "github.com/dimmerz92/eavesdrop"
+import "github.com/dimmerz92/eavesdrop/v2"
 ```
 
 ### Basic example
@@ -146,7 +150,7 @@ import (
     "os"
     "os/signal"
 
-    ev "github.com/dimmerz92/eavesdrop"
+    "github.com/dimmerz92/eavesdrop/v2"
 )
 
 func main() {
@@ -260,7 +264,7 @@ import (
     "os"
     "os/signal"
 
-    ev "github.com/dimmerz92/eavesdrop"
+    "github.com/dimmerz92/eavesdrop/v2"
 )
 
 func main() {
