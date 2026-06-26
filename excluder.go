@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/dimmerz92/eavesdrop/internal/components"
+	"github.com/dimmerz92/eavesdrop/v2/internal/components"
 )
 
 type Excluder struct {

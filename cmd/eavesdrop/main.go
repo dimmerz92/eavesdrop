@@ -8,8 +8,8 @@ import (
 	"os/signal"
 	"strings"
 
-	"github.com/dimmerz92/eavesdrop/internal/cli"
-	"github.com/dimmerz92/eavesdrop/internal/config"
+	"github.com/dimmerz92/eavesdrop/v2/internal/cli"
+	"github.com/dimmerz92/eavesdrop/v2/internal/config"
 )
 
 func main() {

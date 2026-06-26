@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	ev "github.com/dimmerz92/eavesdrop"
+	"github.com/dimmerz92/eavesdrop/v2"
 )
 
 const eventTimeout = 2 * time.Second

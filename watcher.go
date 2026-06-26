@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dimmerz92/eavesdrop/internal/components"
+	"github.com/dimmerz92/eavesdrop/v2/internal/components"
 )
 
 // DefaultDebounceDelay is the default debounce delay in milliseconds applied to file change events.

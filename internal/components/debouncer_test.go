@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dimmerz92/eavesdrop/internal/components"
+	"github.com/dimmerz92/eavesdrop/v2/internal/components"
 )
 
 func TestNewDebouncer(t *testing.T) {

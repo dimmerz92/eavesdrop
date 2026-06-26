@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/dimmerz92/eavesdrop/internal/components"
+	"github.com/dimmerz92/eavesdrop/v2/internal/components"
 )
 
 func TestToSet(t *testing.T) {

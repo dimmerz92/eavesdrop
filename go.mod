@@ -1,4 +1,4 @@
-module github.com/dimmerz92/eavesdrop
+module github.com/dimmerz92/eavesdrop/v2
 
 go 1.26.1
 

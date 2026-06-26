@@ -4,9 +4,9 @@ import (
 	"context"
 	"sync"
 
-	"github.com/dimmerz92/eavesdrop"
-	"github.com/dimmerz92/eavesdrop/internal/components"
-	"github.com/dimmerz92/eavesdrop/internal/config"
+	"github.com/dimmerz92/eavesdrop/v2"
+	"github.com/dimmerz92/eavesdrop/v2/internal/components"
+	"github.com/dimmerz92/eavesdrop/v2/internal/config"
 )
 
 func ConstructEventEmitter(ctx context.Context, config config.Config) *ev.EventEmitter {

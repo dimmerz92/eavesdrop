@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dimmerz92/eavesdrop/internal/components"
+	"github.com/dimmerz92/eavesdrop/v2/internal/components"
 )
 
 func freePort(t *testing.T) uint16 {

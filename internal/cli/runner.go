@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	ev "github.com/dimmerz92/eavesdrop"
+	"github.com/dimmerz92/eavesdrop/v2"
 	"github.com/fatih/color"
 )
 

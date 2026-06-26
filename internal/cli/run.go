@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dimmerz92/eavesdrop/internal/config"
+	"github.com/dimmerz92/eavesdrop/v2/internal/config"
 )
 
 var defaultConfigNames = []string{"eavesdrop.json", "eavesdrop.toml", "eavesdrop.yaml"}

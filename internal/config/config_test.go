@@ -3,7 +3,7 @@ package config_test
 import (
 	"testing"
 
-	"github.com/dimmerz92/eavesdrop/internal/config"
+	"github.com/dimmerz92/eavesdrop/v2/internal/config"
 )
 
 func generateConfig() config.Config {

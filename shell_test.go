@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dimmerz92/eavesdrop"
+	"github.com/dimmerz92/eavesdrop/v2"
 )
 
 func TestShell(t *testing.T) {
