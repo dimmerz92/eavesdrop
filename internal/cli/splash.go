@@ -33,4 +33,4 @@ var Help = Splash +
 	fmt.Sprintf("\t%s: the filetype to generate (json, toml, yaml). Defaults to json\n", color.MagentaString("-ext")) +
 	fmt.Sprintf("\n%s: Prints the help text for eavesdrop\n\n", color.BlueString("help")) +
 	fmt.Sprintf("%s: can be used without any commands\n\n", color.YellowString("OPTIONS:")) +
-	fmt.Sprintf("%s: The path of the config file. Defaults to ./eavesdrop.json", color.MagentaString("-config"))
+	fmt.Sprintf("%s: The path of the config file. Auto-detected from eavesdrop.{json,toml,yaml} in the current directory", color.MagentaString("-config"))

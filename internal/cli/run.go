@@ -3,21 +3,43 @@ package cli
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/dimmerz92/eavesdrop/internal/config"
 )
 
+var defaultConfigNames = []string{"eavesdrop.json", "eavesdrop.toml", "eavesdrop.yaml"}
+
+func findDefaultConfig() (string, error) {
+	for _, name := range defaultConfigNames {
+		if _, err := os.Stat(name); err == nil {
+			return name, nil
+		}
+	}
+	return "", fmt.Errorf("no config file found; expected one of: %s", strings.Join(defaultConfigNames, ", "))
+}
+
 func RunEavesdrop(ctx context.Context) {
 	println(Splash)
 
-	path := flag.String("config", "eavesdrop.json", "the path to the config file")
+	path := flag.String("config", "", "the path to the config file")
 	flag.Parse()
 
-	config, err := config.GetConfig(*path)
+	configPath := *path
+	if configPath == "" {
+		var err error
+		configPath, err = findDefaultConfig()
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	config, err := config.GetConfig(configPath)
 	if err != nil {
 		panic(err)
 	}
