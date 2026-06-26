@@ -75,8 +75,8 @@ func (w *Watcher) Handle(event Event) {
 		return
 	}
 
-	slog.Info("file changed", slog.String("watcher", w.name), slog.String("path", event.Path()))
 	w.debouncer.Do(func() {
+		slog.Info("file changed", slog.String("watcher", w.name), slog.String("path", event.Path()))
 		w.onChange(event)
 		if w.triggerRefresh {
 			time.Sleep(w.refreshDelay)
