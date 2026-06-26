@@ -2,7 +2,7 @@
     <a href="https://goreportcard.com/report/github.com/dimmerz92/eavesdrop">
         <img src="https://goreportcard.com/badge/github.com/dimmerz92/eavesdrop" alt="Go Report Card" />
     </a>
-    <a href="https://pkg.go.dev/github.com/dimmerz92/eavesdrop">
+    <a href="https://pkg.go.dev/github.com/dimmerz92/eavesdrop/v2">
         <img src="https://pkg.go.dev/badge/github.com/dimmerz92/eavesdrop" alt="Go Reference" />
     </a>
     <a href="https://opensource.org/licenses/MIT">
