@@ -65,6 +65,7 @@ func (s *Shell) ExecAndWait(task string) error {
 	}
 
 	s.pid = s.cmd.Process.Pid
+	s.cmd.Cancel = func() error { return s.KillProcessGroup() }
 
 	return s.cmd.Wait()
 }
